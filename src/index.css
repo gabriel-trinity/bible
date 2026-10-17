@@ -1,0 +1,111 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    --bg-page: #f8fafc;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --border-color: rgba(15, 23, 42, 0.12);
+    --card-bg: #ffffff;
+    --accent-color: #0f172a;
+  }
+
+  html.dark,
+  :root.dark,
+  .dark,
+  .theme-dark {
+    --bg-page: #090d16;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --border-color: rgba(248, 250, 252, 0.12);
+    --card-bg: #111827;
+    --accent-color: #f8fafc;
+  }
+
+  body {
+    background-color: var(--bg-page);
+    color: var(--text-primary);
+    font-family: 'Roboto', 'Noto Sans SC', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  * {
+    font-family: inherit;
+  }
+}
+
+/* Light Mode */
+.theme-light {
+  --bg-page: #f8fafc;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --border-color: rgba(15, 23, 42, 0.12);
+  --card-bg: #ffffff;
+  --accent-color: #0f172a;
+}
+
+/* Dark Mode */
+.theme-dark {
+  --bg-page: #090d16;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --border-color: rgba(248, 250, 252, 0.12);
+  --card-bg: #111827;
+  --accent-color: #f8fafc;
+}
+
+/* Pinyin Typography with Roboto Sans */
+ruby {
+  display: inline-flex;
+  flex-direction: column-reverse;
+  vertical-align: bottom;
+  text-align: center;
+  align-items: center;
+  ruby-position: over;
+  ruby-align: center;
+  margin: 0 1px;
+}
+
+ruby rt {
+  display: block;
+  font-family: 'Roboto', sans-serif;
+  line-height: 1.15;
+  font-weight: 500;
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Pinyin sizing */
+.pinyin-sm rt {
+  font-size: 0.52em;
+}
+
+.pinyin-base rt {
+  font-size: 0.62em;
+}
+
+.pinyin-lg rt {
+  font-size: 0.74em;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(59, 13, 24, 0.20);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(59, 13, 24, 0.35);
+}
