@@ -70,7 +70,7 @@ async function loadBookData(bookId: string): Promise<StoredBook | null> {
             chapterCache.set(chapKey, {
               bookId: normId,
               chapter: chap.chapter,
-              titleZh: book ? `${book.nameZh} 第 ${chap.chapter} 章` : `第 ${chap.chapter} 章`,
+              titleZh: book ? `${book.nameZh} ${chap.chapter}` : `${chap.chapter}`,
               titleEn: book ? `${book.nameEn} Chapter ${chap.chapter}` : `Chapter ${chap.chapter}`,
               verses: chap.verses,
             });
@@ -127,7 +127,7 @@ async function fetchOnlineWordForWordChapter(bookId: string, chapter: number): P
           return {
             bookId: normId,
             chapter,
-            titleZh: `${book.nameZh} 第 ${chapter} 章`,
+            titleZh: `${book.nameZh} ${chapter}`,
             titleEn: `${book.nameEn} Chapter ${chapter}`,
             verses,
           };
@@ -191,7 +191,7 @@ async function fetchOnlineWordForWordChapter(bookId: string, chapter: number): P
     return {
       bookId: normId,
       chapter,
-      titleZh: `${book.nameZh} 第 ${chapter} 章`,
+      titleZh: `${book.nameZh} ${chapter}`,
       titleEn: `${book.nameEn} Chapter ${chapter}`,
       verses,
     };
@@ -230,7 +230,7 @@ export async function fetchChapter(bookId: string, chapter: number): Promise<Cha
       const result: ChapterContent = {
         bookId: normId,
         chapter,
-        titleZh: book ? `${book.nameZh} 第 ${chapter} 章` : `第 ${chapter} 章`,
+        titleZh: book ? `${book.nameZh} ${chapter}` : `${chapter}`,
         titleEn: book ? `${book.nameEn} Chapter ${chapter}` : `Chapter ${chapter}`,
         pericopes: pericopesForChapter,
         verses: chap.verses,
@@ -277,7 +277,7 @@ export async function fetchChapter(bookId: string, chapter: number): Promise<Cha
   const fallback: ChapterContent = {
     bookId: normId,
     chapter,
-    titleZh: `${book.nameZh} 第 ${chapter} 章`,
+    titleZh: `${book.nameZh} ${chapter}`,
     titleEn: `${book.nameEn} Chapter ${chapter}`,
     pericopes: pericopesForChapter,
     verses: fallbackVerses,

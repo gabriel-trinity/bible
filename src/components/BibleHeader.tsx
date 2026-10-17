@@ -14,6 +14,8 @@ import {
   Moon,
   Sun,
   Sparkles,
+  MoreHorizontal,
+  Globe,
 } from 'lucide-react';
 import {
   BibleBook,
@@ -27,18 +29,16 @@ import { TRANSLATIONS } from '../data/bibleBooks';
 interface BibleHeaderProps {
   currentBook: BibleBook;
   currentChapter: number;
+  readingMode: ReadingMode;
   primaryTrans: TranslationId;
   parallelTrans: TranslationId;
-  readingMode: ReadingMode;
   pinyinMode: PinyinDisplayMode;
   theme: AppTheme;
-  bookmarkCount: number;
   isPlayingAudio: boolean;
-  canGoPrev?: boolean;
-  canGoNext?: boolean;
+  bookmarkCount: number;
+  onOpenBookPicker: () => void;
   onPrevChapter?: () => void;
   onNextChapter?: () => void;
-  onOpenBookPicker: () => void;
   onOpenSettings: () => void;
   onOpenSearch: () => void;
   onOpenBookmarks: () => void;
@@ -52,18 +52,16 @@ interface BibleHeaderProps {
 export const BibleHeader: React.FC<BibleHeaderProps> = ({
   currentBook,
   currentChapter,
+  readingMode,
   primaryTrans,
   parallelTrans,
-  readingMode,
   pinyinMode,
   theme,
-  bookmarkCount,
   isPlayingAudio,
-  canGoPrev = false,
-  canGoNext = false,
+  bookmarkCount,
+  onOpenBookPicker,
   onPrevChapter,
   onNextChapter,
-  onOpenBookPicker,
   onOpenSettings,
   onOpenSearch,
   onOpenBookmarks,
@@ -73,6 +71,9 @@ export const BibleHeader: React.FC<BibleHeaderProps> = ({
   onCyclePinyinMode,
   onToggleTheme,
 }) => {
+  const canGoPrev = currentChapter > 1;
+  const canGoNext = currentChapter < currentBook.chaptersCount;
+
   const pinyinLabel =
     pinyinMode === 'below'
       ? '汉语拼音: 字下'
@@ -85,8 +86,8 @@ export const BibleHeader: React.FC<BibleHeaderProps> = ({
   return (
     <header className="sticky top-0 z-40 w-full backdrop-blur-md border-b transition-colors bg-white/95 dark:bg-slate-900/95 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 shadow-xs">
       <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 py-2 flex items-center justify-between gap-1.5 sm:gap-3">
-        {/* Left: Prev/Next chapter icons & Book Picker */}
-        <div className="flex items-center gap-1 sm:gap-1.5 shrink min-w-0">
+        {/* Desktop Left: Prev/Next chapter icons & Book Picker */}
+        <div className="hidden sm:flex items-center gap-1 sm:gap-1.5 shrink min-w-0">
           {onPrevChapter && (
             <button
               onClick={onPrevChapter}
@@ -106,13 +107,13 @@ export const BibleHeader: React.FC<BibleHeaderProps> = ({
           >
             <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-600 dark:text-slate-300 group-hover:scale-105 transition-transform shrink-0" />
             <div className="flex flex-col text-left min-w-0">
-              {/* Line 1: English + Chinese (创世记 第 1 章) */}
+              {/* Line 1: English + Chinese */}
               <div className="flex items-baseline gap-1 sm:gap-2 truncate">
                 <span className="font-bold text-xs sm:text-sm md:text-base leading-tight truncate">
                   {currentBook.nameEn} {currentChapter}
                 </span>
                 <span className="text-[11px] sm:text-xs md:text-sm font-semibold text-slate-800 dark:text-slate-200 font-sans truncate">
-                  {currentBook.nameZh} 第 {currentChapter} 章
+                  {currentBook.nameZh}
                 </span>
               </div>
               {/* Line 2: Hanyu Pinyin */}
@@ -149,8 +150,8 @@ export const BibleHeader: React.FC<BibleHeaderProps> = ({
           </div>
         </div>
 
-        {/* Center: Reading Mode Icons Segmented Control */}
-        <div className="flex items-center p-0.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shrink-0">
+        {/* Desktop Center: Reading Mode Icons Segmented Control */}
+        <div className="hidden sm:flex items-center p-0.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shrink-0">
           <button
             onClick={() => onChangeReadingMode('split')}
             className={`p-1.5 sm:px-2 sm:py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer font-sans ${
@@ -194,12 +195,15 @@ export const BibleHeader: React.FC<BibleHeaderProps> = ({
           </button>
         </div>
 
-        {/* Right Tools: Responsive Icon Buttons */}
-        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
-          {/* Quick Pinyin Toggle Button */}
+        {/* Mobile Spacer: pushes icons to the right on mobile */}
+        <div className="sm:hidden flex-1" />
+
+        {/* Right Tools: Responsive Icon Buttons (matching Image 1 on mobile) */}
+        <div className="flex items-center gap-2 sm:gap-1.5 shrink-0">
+          {/* Quick Pinyin Toggle Button (Desktop) */}
           <button
             onClick={onCyclePinyinMode}
-            className={`px-2 py-1.5 rounded-xl border text-xs font-sans font-semibold flex items-center gap-1 transition-all shadow-xs cursor-pointer ${
+            className={`hidden sm:flex px-2 py-1.5 rounded-xl border text-xs font-sans font-semibold items-center gap-1 transition-all shadow-xs cursor-pointer ${
               pinyinMode === 'below'
                 ? 'border-slate-900 bg-slate-900 text-white dark:border-slate-100 dark:bg-slate-100 dark:text-slate-900'
                 : pinyinMode === 'inline'
@@ -215,38 +219,38 @@ export const BibleHeader: React.FC<BibleHeaderProps> = ({
             <span className="hidden lg:inline">{pinyinLabel}</span>
           </button>
 
-          {/* Audio Listen */}
+          {/* 1. Audio Listen (matches Image 1: Volume2) */}
           <button
             onClick={onToggleAudio}
-            className={`p-1.5 sm:p-2 rounded-xl border transition-all cursor-pointer ${
+            className={`p-1.5 sm:p-2 rounded-xl transition-all cursor-pointer ${
               isPlayingAudio
-                ? 'border-slate-900 bg-slate-900 text-white dark:border-slate-100 dark:bg-slate-100 dark:text-slate-900 animate-pulse'
-                : 'border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'
+                ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 animate-pulse'
+                : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
             }`}
             title="Read Chapter Aloud"
             aria-label="Read Chapter Aloud"
           >
-            <Volume2 className="w-4 h-4 text-slate-700 dark:text-slate-300" />
+            <Volume2 className="w-5 h-5 sm:w-4 sm:h-4" />
           </button>
 
-          {/* Search Button */}
+          {/* 2. Search Button (matches Image 1: Search) */}
           <button
             onClick={onOpenSearch}
-            className="p-1.5 sm:p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            className="p-1.5 sm:p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer text-slate-700 dark:text-slate-300"
             title="Search Scripture"
             aria-label="Search Scripture"
           >
-            <Search className="w-4 h-4 text-slate-700 dark:text-slate-300" />
+            <Search className="w-5 h-5 sm:w-4 sm:h-4" />
           </button>
 
-          {/* Bookmarks Drawer Button */}
+          {/* Bookmarks Drawer Button (Desktop) */}
           <button
             onClick={onOpenBookmarks}
-            className="relative p-1.5 sm:p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            className="hidden sm:flex relative p-1.5 sm:p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer text-slate-700 dark:text-slate-300"
             title="Bookmarks & Saved Verses"
             aria-label="Bookmarks"
           >
-            <Bookmark className="w-4 h-4 text-slate-700 dark:text-slate-300" />
+            <Bookmark className="w-4 h-4" />
             {bookmarkCount > 0 && (
               <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 text-[10px] font-bold flex items-center justify-center font-sans">
                 {bookmarkCount}
@@ -254,30 +258,41 @@ export const BibleHeader: React.FC<BibleHeaderProps> = ({
             )}
           </button>
 
-          {/* Custom Passage Tool */}
+          {/* Custom Passage Tool (Desktop) */}
           <button
             onClick={onOpenCustomPassage}
-            className="p-1.5 sm:p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors hidden sm:flex cursor-pointer"
+            className="p-1.5 sm:p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors hidden sm:flex cursor-pointer text-slate-700 dark:text-slate-300"
             title="Custom Scripture Pinyin Annotator"
             aria-label="Custom Scripture Annotator"
           >
-            <Sparkles className="w-4 h-4 text-slate-700 dark:text-slate-300" />
+            <Sparkles className="w-4 h-4" />
           </button>
 
-          {/* Reader Settings Modal */}
+          {/* 3. More / Reader Settings (matches Image 1: circle with 3 dots) */}
           <button
             onClick={onOpenSettings}
-            className="p-1.5 sm:p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            className="p-1.5 sm:p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer text-slate-700 dark:text-slate-300"
             title="Reader Settings"
             aria-label="Reader Settings"
           >
-            <Sliders className="w-4 h-4 text-slate-700 dark:text-slate-300" />
+            <MoreHorizontal className="w-5 h-5 sm:hidden" />
+            <Sliders className="w-4 h-4 hidden sm:block" />
           </button>
 
-          {/* Theme Switcher */}
+          {/* 4. Translation Pill (matches Image 1: 🌐 NIV) */}
+          <button
+            onClick={onOpenSettings}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 transition-colors cursor-pointer"
+            title="Select Bible Translation"
+          >
+            <Globe className="w-3.5 h-3.5 opacity-75" />
+            <span>{TRANSLATIONS[primaryTrans]?.shortName || primaryTrans}</span>
+          </button>
+
+          {/* Theme Switcher (Desktop) */}
           <button
             onClick={onToggleTheme}
-            className="p-1.5 sm:p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            className="hidden sm:flex p-1.5 sm:p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
             title="Toggle Light / Dark Theme"
             aria-label="Toggle Theme"
           >

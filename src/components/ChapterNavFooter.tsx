@@ -1,11 +1,13 @@
 import React from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Play, Pause } from 'lucide-react';
 import { BibleBook, AppTheme } from '../types/bible';
 
 interface ChapterNavFooterProps {
   currentBook: BibleBook;
   currentChapter: number;
   theme: AppTheme;
+  isPlayingAudio?: boolean;
+  onToggleAudio?: () => void;
   onPrevChapter: () => void;
   onNextChapter: () => void;
   onOpenBookPicker: () => void;
@@ -14,6 +16,8 @@ interface ChapterNavFooterProps {
 export const ChapterNavFooter: React.FC<ChapterNavFooterProps> = ({
   currentBook,
   currentChapter,
+  isPlayingAudio = false,
+  onToggleAudio,
   onPrevChapter,
   onNextChapter,
   onOpenBookPicker,
@@ -23,40 +27,54 @@ export const ChapterNavFooter: React.FC<ChapterNavFooterProps> = ({
 
   return (
     <>
-      {/* 1. Mobile View: FIXED at the bottom when scrolling */}
-      <div className="fixed bottom-0 inset-x-0 z-30 sm:hidden bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-4 py-2 flex items-center justify-between shadow-lg font-sans">
-        {/* Left Arrow */}
-        <button
-          onClick={onPrevChapter}
-          disabled={!canGoPrev}
-          className="w-10 h-10 rounded-xl flex items-center justify-center bg-slate-100 dark:bg-slate-800 active:bg-slate-200 dark:active:bg-slate-700 text-slate-800 dark:text-slate-200 disabled:opacity-20 disabled:pointer-events-none transition-colors cursor-pointer shadow-xs shrink-0"
-          title="Previous Chapter"
-          aria-label="Previous Chapter"
-        >
-          <ChevronLeft className="w-5 h-5" />
-        </button>
+      {/* 1. Mobile View: FIXED at the bottom when scrolling, matching Image 1 */}
+      <div className="fixed bottom-4 inset-x-0 z-30 sm:hidden px-4 font-sans pointer-events-none">
+        <div className="flex items-center gap-2 max-w-sm mx-auto pointer-events-auto">
+          {/* Circular Audio Play/Pause Button matching Image 1 */}
+          <button
+            onClick={onToggleAudio}
+            className="w-12 h-12 rounded-full bg-slate-900/95 dark:bg-slate-800/95 backdrop-blur-md text-white flex items-center justify-center shadow-2xl border border-slate-700/50 active:scale-95 transition-transform cursor-pointer shrink-0"
+            title={isPlayingAudio ? 'Pause' : 'Play audio'}
+            aria-label={isPlayingAudio ? 'Pause' : 'Play audio'}
+          >
+            {isPlayingAudio ? (
+              <Pause className="w-5 h-5 fill-current" />
+            ) : (
+              <Play className="w-5 h-5 fill-current ml-0.5" />
+            )}
+          </button>
 
-        {/* Center: Book and Chapter only (e.g. Genesis 1) */}
-        <button
-          onClick={onOpenBookPicker}
-          className="px-4 py-2 rounded-xl active:bg-slate-100 dark:active:bg-slate-800 transition-colors cursor-pointer text-center truncate max-w-[200px]"
-          title="Select Book and Chapter"
-        >
-          <span className="font-bold text-base text-slate-900 dark:text-slate-100 truncate block">
-            {currentBook.nameEn} {currentChapter}
-          </span>
-        </button>
+          {/* Pill Container: < Genesis 1 > matching Image 1 */}
+          <div className="flex-1 h-12 rounded-full bg-slate-900/95 dark:bg-slate-800/95 backdrop-blur-md text-white flex items-center justify-between px-2 shadow-2xl border border-slate-700/50">
+            <button
+              onClick={onPrevChapter}
+              disabled={!canGoPrev}
+              className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-white/10 active:bg-white/20 disabled:opacity-20 disabled:pointer-events-none transition-colors cursor-pointer shrink-0"
+              title="Previous Chapter"
+              aria-label="Previous Chapter"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
 
-        {/* Right Arrow */}
-        <button
-          onClick={onNextChapter}
-          disabled={!canGoNext}
-          className="w-10 h-10 rounded-xl flex items-center justify-center bg-slate-100 dark:bg-slate-800 active:bg-slate-200 dark:active:bg-slate-700 text-slate-800 dark:text-slate-200 disabled:opacity-20 disabled:pointer-events-none transition-colors cursor-pointer shadow-xs shrink-0"
-          title="Next Chapter"
-          aria-label="Next Chapter"
-        >
-          <ChevronRight className="w-5 h-5" />
-        </button>
+            <button
+              onClick={onOpenBookPicker}
+              className="flex-1 px-2 text-center text-sm font-bold text-white hover:text-slate-200 transition-colors cursor-pointer truncate"
+              title="Select Book and Chapter"
+            >
+              {currentBook.nameEn} {currentChapter}
+            </button>
+
+            <button
+              onClick={onNextChapter}
+              disabled={!canGoNext}
+              className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-white/10 active:bg-white/20 disabled:opacity-20 disabled:pointer-events-none transition-colors cursor-pointer shrink-0"
+              title="Next Chapter"
+              aria-label="Next Chapter"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* 2. Desktop & Tablet View: Clean inline footer navigation */}

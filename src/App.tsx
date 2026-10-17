@@ -52,8 +52,8 @@ export default function App() {
   const [primaryTrans, setPrimaryTrans] = useState<TranslationId>('NIV');
   const [parallelTrans, setParallelTrans] = useState<TranslationId>('CNVS');
 
-  // Reader Preferences: Default 'below' for Hanyu Pinyin underneath Chinese characters
-  const [readingMode, setReadingMode] = useState<ReadingMode>('split');
+  // Reader Preferences: Default 'interlinear' for stacked bilingual view with Hanyu Pinyin underneath
+  const [readingMode, setReadingMode] = useState<ReadingMode>('interlinear');
   const [pinyinMode, setPinyinMode] = useState<PinyinDisplayMode>('below');
   const [pinyinSize, setPinyinSize] = useState<PinyinSize>('base');
   const [colorTones, setColorTones] = useState<boolean>(false);
@@ -450,8 +450,6 @@ export default function App() {
         theme={theme}
         bookmarkCount={bookmarks.length}
         isPlayingAudio={isPlayingAudio}
-        canGoPrev={currentChapter > 1}
-        canGoNext={currentChapter < currentBook.chaptersCount}
         onPrevChapter={handlePrevChapter}
         onNextChapter={handleNextChapter}
         onOpenBookPicker={() => setIsBookPickerOpen(true)}
@@ -467,11 +465,12 @@ export default function App() {
 
       {/* Main Chapter Content Container */}
       <main className="flex-1 w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 pt-3 sm:pt-6 pb-20 sm:pb-8">
-        {/* Chapter Title */}
-        <div className="text-center py-3 sm:py-5 border-b border-slate-200 dark:border-slate-800 mb-4 sm:mb-6">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-slate-900 dark:text-slate-100 font-sans">
-            {currentBook.nameEn} {currentChapter}
+        {/* Chapter Title matching Image 1 */}
+        <div className="text-center pt-2 sm:pt-4 pb-2 mb-4 font-sans">
+          <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-slate-900 dark:text-slate-100">
+            {currentBook.nameEn}
           </h1>
+          <div className="w-10 h-1 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto mt-2.5" />
         </div>
 
         {/* Loading State or Reader View */}
@@ -560,6 +559,8 @@ export default function App() {
             currentBook={currentBook}
             currentChapter={currentChapter}
             theme={theme}
+            isPlayingAudio={isPlayingAudio}
+            onToggleAudio={handleToggleAudio}
             onPrevChapter={handlePrevChapter}
             onNextChapter={handleNextChapter}
             onOpenBookPicker={() => setIsBookPickerOpen(true)}
