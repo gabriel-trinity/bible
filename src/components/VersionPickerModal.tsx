@@ -146,7 +146,7 @@ export const VersionPickerModal: React.FC<VersionPickerModalProps> = ({
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                 }`}
               >
-                Chinese (中文)
+                Chinese
               </button>
             </div>
           </div>
@@ -171,14 +171,14 @@ export const VersionPickerModal: React.FC<VersionPickerModalProps> = ({
                 <div className="flex-1 pr-3 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
-                      {version.name}
+                      {version.name.replace(/\s*[\(（][^\)）]*[\)）]/g, '')}
                     </span>
                     <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold tracking-wider bg-slate-200/80 dark:bg-slate-700 text-slate-800 dark:text-slate-200 uppercase shrink-0">
                       {version.id}
                     </span>
                   </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
-                    {version.description}
+                    {version.description.replace(/\s*[\(（][^\)）]*[\)）]/g, '')}
                   </p>
                 </div>
 

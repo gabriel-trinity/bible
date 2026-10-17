@@ -1017,15 +1017,15 @@ export const BIBLE_BOOKS: BibleBook[] = [
 export const TRANSLATIONS: Record<TranslationId, TranslationMeta> = {
   CNVS: {
     id: 'CNVS',
-    name: 'Chinese New Version Simplified (新译本 CNVS)',
-    shortName: 'CNVS (Pinyin)',
+    name: 'Chinese New Version Simplified',
+    shortName: 'CNVS',
     lang: 'zh',
     description: 'Contemporary accurate Chinese translation with Hanyu Pinyin',
     hasPinyin: true,
   },
   ESV: {
     id: 'ESV',
-    name: 'English Standard Version (ESV)',
+    name: 'English Standard Version',
     shortName: 'ESV',
     lang: 'en',
     description: 'Essentially literal translation capturing the structure and nuance',
@@ -1033,7 +1033,7 @@ export const TRANSLATIONS: Record<TranslationId, TranslationMeta> = {
   },
   NASB: {
     id: 'NASB',
-    name: 'New American Standard Bible (NASB)',
+    name: 'New American Standard Bible',
     shortName: 'NASB',
     lang: 'en',
     description: 'Renowned for literal precision and strict adherence to Hebrew & Greek',
@@ -1041,7 +1041,7 @@ export const TRANSLATIONS: Record<TranslationId, TranslationMeta> = {
   },
   NIV: {
     id: 'NIV',
-    name: 'New International Version (NIV)',
+    name: 'New International Version',
     shortName: 'NIV',
     lang: 'en',
     description: 'Modern, clear, widely-read English translation with high fidelity',
@@ -1049,7 +1049,7 @@ export const TRANSLATIONS: Record<TranslationId, TranslationMeta> = {
   },
   NKJV: {
     id: 'NKJV',
-    name: 'New King James Version (NKJV)',
+    name: 'New King James Version',
     shortName: 'NKJV',
     lang: 'en',
     description: 'Classic literary elegance with modern linguistic clarity',
@@ -1057,7 +1057,7 @@ export const TRANSLATIONS: Record<TranslationId, TranslationMeta> = {
   },
   NLT: {
     id: 'NLT',
-    name: 'New Living Translation (NLT)',
+    name: 'New Living Translation',
     shortName: 'NLT',
     lang: 'en',
     description: 'Warm, highly readable, thought-for-thought English translation',
