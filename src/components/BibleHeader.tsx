@@ -37,6 +37,7 @@ interface BibleHeaderProps {
   isPlayingAudio: boolean;
   bookmarkCount: number;
   onOpenBookPicker: () => void;
+  onOpenVersionPicker: () => void;
   onPrevChapter?: () => void;
   onNextChapter?: () => void;
   onOpenSettings: () => void;
@@ -60,6 +61,7 @@ export const BibleHeader: React.FC<BibleHeaderProps> = ({
   isPlayingAudio,
   bookmarkCount,
   onOpenBookPicker,
+  onOpenVersionPicker,
   onPrevChapter,
   onNextChapter,
   onOpenSettings,
@@ -139,7 +141,11 @@ export const BibleHeader: React.FC<BibleHeaderProps> = ({
           )}
 
           {/* Active Translation Indicator */}
-          <div className="hidden lg:flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-[11px] font-sans font-semibold border border-slate-200/60 dark:border-slate-700/60 shrink-0">
+          <button
+            onClick={onOpenVersionPicker}
+            className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-sans font-semibold border border-slate-200/60 dark:border-slate-700/60 shrink-0 cursor-pointer transition-colors"
+            title="Change Bible Version"
+          >
             <span>{TRANSLATIONS[primaryTrans]?.shortName}</span>
             {readingMode === 'split' && (
               <>
@@ -147,7 +153,7 @@ export const BibleHeader: React.FC<BibleHeaderProps> = ({
                 <span>{TRANSLATIONS[parallelTrans]?.shortName}</span>
               </>
             )}
-          </div>
+          </button>
         </div>
 
         {/* Desktop Center: Reading Mode Icons Segmented Control */}
@@ -281,9 +287,9 @@ export const BibleHeader: React.FC<BibleHeaderProps> = ({
 
           {/* 4. Translation Pill (matches Image 1: 🌐 NIV) */}
           <button
-            onClick={onOpenSettings}
+            onClick={onOpenVersionPicker}
             className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 transition-colors cursor-pointer"
-            title="Select Bible Translation"
+            title="Select Bible Version"
           >
             <Globe className="w-3.5 h-3.5 opacity-75" />
             <span>{TRANSLATIONS[primaryTrans]?.shortName || primaryTrans}</span>

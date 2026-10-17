@@ -19,8 +19,9 @@ import { BookmarksDrawer } from './components/BookmarksDrawer';
 import { CustomPassageModal } from './components/CustomPassageModal';
 import { ChapterNavFooter } from './components/ChapterNavFooter';
 import { NoteModal } from './components/NoteModal';
+import { VersionPickerModal } from './components/VersionPickerModal';
 
-import { BIBLE_BOOKS, getBookById } from './data/bibleBooks';
+import { BIBLE_BOOKS, getBookById, TRANSLATIONS } from './data/bibleBooks';
 import { fetchChapter } from './services/bibleService';
 import { speechService } from './services/speechService';
 import {
@@ -68,6 +69,7 @@ export default function App() {
 
   // Modals & Drawers
   const [isBookPickerOpen, setIsBookPickerOpen] = useState(false);
+  const [isVersionPickerOpen, setIsVersionPickerOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isBookmarksOpen, setIsBookmarksOpen] = useState(false);
@@ -261,6 +263,19 @@ export default function App() {
     }
   };
 
+  const handleSelectVersion = useCallback((transId: TranslationId) => {
+    const meta = TRANSLATIONS[transId];
+    if (meta.lang === 'zh') {
+      if (primaryTrans === 'CNVS') {
+        setPrimaryTrans(transId);
+      } else {
+        setParallelTrans(transId);
+      }
+    } else {
+      setPrimaryTrans(transId);
+    }
+  }, [primaryTrans]);
+
   const handlePrevChapter = () => {
     if (currentChapter > 1) {
       setCurrentChapter((prev) => prev - 1);
@@ -453,6 +468,7 @@ export default function App() {
         onPrevChapter={handlePrevChapter}
         onNextChapter={handleNextChapter}
         onOpenBookPicker={() => setIsBookPickerOpen(true)}
+        onOpenVersionPicker={() => setIsVersionPickerOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenSearch={() => setIsSearchOpen(true)}
         onOpenBookmarks={() => setIsBookmarksOpen(true)}
@@ -623,6 +639,16 @@ export default function App() {
         theme={theme}
         onClose={() => setIsBookPickerOpen(false)}
         onSelect={handleSelectBookChapter}
+      />
+
+      {/* Version Picker Modal matching Image 2 */}
+      <VersionPickerModal
+        isOpen={isVersionPickerOpen}
+        onClose={() => setIsVersionPickerOpen(false)}
+        currentPrimaryTrans={primaryTrans}
+        currentParallelTrans={parallelTrans}
+        theme={theme}
+        onSelectVersion={handleSelectVersion}
       />
 
       {/* Reader Settings Modal */}
