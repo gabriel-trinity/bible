@@ -66,7 +66,7 @@ export const VerseActionToolbar: React.FC<VerseActionToolbarProps> = ({
 
   return (
     <div
-      className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-xl w-[94%] sm:w-auto p-2.5 rounded-2xl shadow-xl border backdrop-blur-md transition-all animate-in slide-in-from-bottom-3 duration-200 font-sans ${
+      className={`fixed bottom-20 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-xl w-[94%] sm:w-auto p-2.5 rounded-2xl shadow-xl border backdrop-blur-md transition-all animate-in slide-in-from-bottom-3 duration-200 font-sans ${
         theme === 'dark'
           ? 'bg-slate-900/95 border-slate-700 text-slate-100 shadow-slate-950/50'
           : 'bg-white/95 border-slate-200 text-slate-900 shadow-slate-300/50'

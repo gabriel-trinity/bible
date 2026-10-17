@@ -466,7 +466,7 @@ export default function App() {
       />
 
       {/* Main Chapter Content Container */}
-      <main className="flex-1 w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 pt-3 sm:pt-6">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 pt-3 sm:pt-6 pb-20 sm:pb-8">
         {/* Chapter Title */}
         <div className="text-center py-3 sm:py-5 border-b border-slate-200 dark:border-slate-800 mb-4 sm:mb-6">
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-slate-900 dark:text-slate-100 font-sans">

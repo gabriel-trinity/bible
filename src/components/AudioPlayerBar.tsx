@@ -40,7 +40,7 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
 }) => {
   return (
     <div
-      className={`fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-[95%] max-w-xl p-3 rounded-2xl shadow-2xl border backdrop-blur-md transition-all animate-in slide-in-from-bottom-4 font-sans ${
+      className={`fixed bottom-20 sm:bottom-4 left-1/2 -translate-x-1/2 z-40 w-[95%] max-w-xl p-3 rounded-2xl shadow-2xl border backdrop-blur-md transition-all animate-in slide-in-from-bottom-4 font-sans ${
         theme === 'dark'
           ? 'bg-slate-900/95 border-slate-700 text-slate-100'
           : 'bg-white/95 border-slate-200 text-slate-900'
