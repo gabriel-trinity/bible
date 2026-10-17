@@ -14,7 +14,6 @@ interface ChapterNavFooterProps {
 export const ChapterNavFooter: React.FC<ChapterNavFooterProps> = ({
   currentBook,
   currentChapter,
-  theme,
   onPrevChapter,
   onNextChapter,
   onOpenBookPicker,
@@ -23,34 +22,38 @@ export const ChapterNavFooter: React.FC<ChapterNavFooterProps> = ({
   const canGoNext = currentChapter < currentBook.chaptersCount;
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-4 py-8 mb-16 flex items-center justify-between border-t border-slate-200 dark:border-slate-800 font-sans">
+    <div className="w-full max-w-2xl mx-auto px-4 py-8 mb-16 flex items-center justify-between border-t border-slate-200 dark:border-slate-800 font-sans">
+      {/* Left Arrow */}
       <button
         onClick={onPrevChapter}
         disabled={!canGoPrev}
-        className="flex items-center gap-1.5 px-3.5 sm:px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs sm:text-sm font-sans font-medium transition-all disabled:opacity-30 disabled:pointer-events-none shadow-xs cursor-pointer text-slate-800 dark:text-slate-200"
+        className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl flex items-center justify-center bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 disabled:opacity-25 disabled:pointer-events-none transition-colors cursor-pointer shadow-xs"
+        title="Previous Chapter"
+        aria-label="Previous Chapter"
       >
-        <ChevronLeft className="w-4 h-4" />
-        <span>Previous Chapter</span>
+        <ChevronLeft className="w-5 h-5" />
       </button>
 
+      {/* Center: Book and Chapter only (e.g. Genesis 1) */}
       <button
         onClick={onOpenBookPicker}
-        className="px-3 py-1.5 rounded-lg text-xs font-sans opacity-85 hover:opacity-100 font-medium cursor-pointer flex flex-col items-center"
+        className="px-4 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors cursor-pointer group"
+        title="Select Book and Chapter"
       >
-        <span className="font-bold text-sm text-slate-900 dark:text-slate-100">{currentBook.nameEn}</span>
-        <span className="text-xs text-slate-700 dark:text-slate-300">{currentBook.nameZh}</span>
-        {currentBook.namePinyin && (
-          <span className="text-[10px] text-slate-500 dark:text-slate-400">{currentBook.namePinyin}</span>
-        )}
+        <span className="font-bold text-base sm:text-lg text-slate-900 dark:text-slate-100 group-hover:opacity-75 transition-opacity">
+          {currentBook.nameEn} {currentChapter}
+        </span>
       </button>
 
+      {/* Right Arrow */}
       <button
         onClick={onNextChapter}
         disabled={!canGoNext}
-        className="flex items-center gap-1.5 px-3.5 sm:px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs sm:text-sm font-sans font-medium transition-all disabled:opacity-30 disabled:pointer-events-none shadow-xs cursor-pointer text-slate-800 dark:text-slate-200"
+        className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl flex items-center justify-center bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 disabled:opacity-25 disabled:pointer-events-none transition-colors cursor-pointer shadow-xs"
+        title="Next Chapter"
+        aria-label="Next Chapter"
       >
-        <span>Next Chapter</span>
-        <ChevronRight className="w-4 h-4" />
+        <ChevronRight className="w-5 h-5" />
       </button>
     </div>
   );
