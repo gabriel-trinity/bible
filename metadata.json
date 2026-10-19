@@ -1,0 +1,8 @@
+{
+  "name": "Bible",
+  "description": "Verse-by-verse parallel Bible reader with authentic Hanyu Pinyin ruby annotations, side-by-side and interlinear reading modes, and audio pronunciation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
