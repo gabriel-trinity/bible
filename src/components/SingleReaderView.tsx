@@ -139,15 +139,17 @@ export const SingleReaderView: React.FC<SingleReaderViewProps> = ({
               >
               <div className="flex items-start gap-3">
                 <div className="flex flex-col items-center gap-1.5 select-none pt-0.5">
-                  <span
-                    className={`font-sans font-bold text-xs w-6 h-6 rounded-full flex items-center justify-center transition-colors ${
-                      isSelected || isSpeaking
-                        ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-2xs'
-                        : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
-                    }`}
-                  >
-                    {verse.number}
-                  </span>
+                  {!isPrimaryChinese && (
+                    <span
+                      className={`font-sans font-bold text-xs w-6 h-6 rounded-full flex items-center justify-center transition-colors ${
+                        isSelected || isSpeaking
+                          ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-2xs'
+                          : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      {verse.number}
+                    </span>
+                  )}
 
                   <button
                     onClick={(e) => {

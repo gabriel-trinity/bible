@@ -140,37 +140,10 @@ export const BibleHeader: React.FC<BibleHeaderProps> = ({
             </button>
           )}
 
-          {/* Active Translation Indicator */}
-          <button
-            onClick={onOpenVersionPicker}
-            className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] font-sans font-semibold border border-slate-200/60 dark:border-slate-700/60 shrink-0 cursor-pointer transition-colors"
-            title="Change Bible Version"
-          >
-            <span>{TRANSLATIONS[primaryTrans]?.shortName}</span>
-            {readingMode === 'split' && (
-              <>
-                <span className="opacity-40">|</span>
-                <span>{TRANSLATIONS[parallelTrans]?.shortName}</span>
-              </>
-            )}
-          </button>
         </div>
 
         {/* Desktop Center: Reading Mode Icons Segmented Control */}
         <div className="hidden sm:flex items-center p-0.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shrink-0">
-          <button
-            onClick={() => onChangeReadingMode('split')}
-            className={`p-1.5 sm:px-2 sm:py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer font-sans ${
-              readingMode === 'split'
-                ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-xs'
-                : 'opacity-70 hover:opacity-100 text-slate-700 dark:text-slate-300'
-            }`}
-            title="Parallel Side-by-Side View"
-            aria-label="Parallel View"
-          >
-            <Columns className="w-3.5 h-3.5" />
-            <span className="hidden xl:inline">Parallel</span>
-          </button>
 
           <button
             onClick={() => onChangeReadingMode('interlinear')}

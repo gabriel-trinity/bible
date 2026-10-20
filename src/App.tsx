@@ -110,6 +110,26 @@ export default function App() {
   const [speechRate, setSpeechRate] = useState<number>(0.9);
   const [autoAdvanceAudio, setAutoAdvanceAudio] = useState<boolean>(true);
 
+  // Subtle chapter reading progress at top of viewport
+  const [readProgress, setReadProgress] = useState<number>(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.scrollY || document.documentElement.scrollTop;
+      const scrollHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+      if (scrollHeight > 0) {
+        const progress = Math.min(Math.max((scrollTop / scrollHeight) * 100, 0), 100);
+        setReadProgress(progress);
+      } else {
+        setReadProgress(0);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [currentBookId, currentChapter, readingMode, chapterData]);
+
   // Load User Preferences from localStorage
   useEffect(() => {
     try {
@@ -463,6 +483,17 @@ export default function App() {
 
   return (
     <div className={`min-h-screen theme-${theme} ${theme === 'dark' ? 'dark' : ''} transition-colors flex flex-col font-sans bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100`}>
+      {/* Subtle Progress Bar at top of viewport visualizing read position within active chapter */}
+      <div
+        className="fixed top-0 left-0 right-0 h-[2.5px] z-50 pointer-events-none bg-slate-200/40 dark:bg-slate-800/40"
+        aria-hidden="true"
+      >
+        <div
+          className="h-full bg-[#C20009] dark:bg-[#e02e38] transition-[width] duration-100 ease-out shadow-xs"
+          style={{ width: `${readProgress}%` }}
+        />
+      </div>
+
       {/* Top Navbar */}
       <BibleHeader
         currentBook={currentBook}

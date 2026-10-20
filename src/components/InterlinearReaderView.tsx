@@ -142,15 +142,17 @@ export const InterlinearReaderView: React.FC<InterlinearReaderViewProps> = ({
               {/* Header: Verse Number & Badges */}
               <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-200 dark:border-slate-800">
                 <div className="flex items-center gap-2">
-                  <span
-                    className={`font-sans font-bold text-xs w-6 h-6 rounded-full flex items-center justify-center transition-colors select-none ${
-                      isSelected || isSpeaking
-                        ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-xs'
-                        : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
-                    }`}
-                  >
-                    {verse.number}
-                  </span>
+                  {!isTopChinese && (
+                    <span
+                      className={`font-sans font-bold text-xs w-6 h-6 rounded-full flex items-center justify-center transition-colors select-none ${
+                        isSelected || isSpeaking
+                          ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-xs'
+                          : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      {verse.number}
+                    </span>
+                  )}
 
                   <button
                     onClick={(e) => {
@@ -174,9 +176,6 @@ export const InterlinearReaderView: React.FC<InterlinearReaderViewProps> = ({
                     </span>
                   )}
                 </div>
-                <span className="text-[11px] opacity-60 font-sans font-semibold">
-                  {TRANSLATIONS[topTrans]?.shortName} / {TRANSLATIONS[bottomTrans]?.shortName}
-                </span>
               </div>
 
               {/* Top Row (English first if bilingual) */}

@@ -176,19 +176,7 @@ export const ReaderSettingsModal: React.FC<ReaderSettingsModalProps> = ({
               <Layout className="w-4 h-4" />
               <span>Reading Layout</span>
             </label>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                onClick={() => setReadingMode('split')}
-                className={`py-2 px-1.5 rounded-xl border text-center font-medium transition-all cursor-pointer ${
-                  readingMode === 'split'
-                    ? 'border-slate-900 bg-slate-900 text-white dark:border-slate-100 dark:bg-slate-100 dark:text-slate-900 font-bold shadow-xs'
-                    : 'border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'
-                }`}
-              >
-                <div>Side-by-Side</div>
-                <div className="text-[10px] opacity-70">Parallel Split</div>
-              </button>
-
+            <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => setReadingMode('interlinear')}
                 className={`py-2 px-1.5 rounded-xl border text-center font-medium transition-all cursor-pointer ${
