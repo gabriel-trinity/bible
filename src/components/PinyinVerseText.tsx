@@ -110,13 +110,18 @@ export const PinyinVerseText: React.FC<PinyinVerseTextProps> = ({
           const redClass = isRed ? 'text-[#C20009] font-medium' : '';
           if (!t.isZh || !t.pinyin) {
             return (
-              <span
+              <ruby
                 key={idx}
-                style={isRed ? { color: '#C20009' } : undefined}
-                className={`inline-block px-[1px] ${redClass}`}
+                className="select-text"
               >
-                {t.char}
-              </span>
+                <span
+                  style={isRed ? { color: '#C20009' } : undefined}
+                  className={`select-text ${redClass}`}
+                >
+                  {t.char}
+                </span>
+                <rt className="invisible select-none" aria-hidden="true">&nbsp;</rt>
+              </ruby>
             );
           }
 
@@ -159,19 +164,37 @@ export const PinyinVerseText: React.FC<PinyinVerseTextProps> = ({
   const pinyinSubTextSize = sizeMap[pinyinSize] || sizeMap.base;
 
   return (
-    <span className={`inline-flex flex-wrap items-baseline gap-y-2 font-sans ${className}`}>
+    <span className={`inline-flex flex-wrap items-start gap-y-2 font-sans ${className}`}>
       {tokens.map((t, idx) => {
         const isRed = redLetter && t.isRed;
         const redClass = isRed ? 'text-[#C20009] font-medium' : '';
 
         if (!t.isZh || !t.pinyin) {
+          if (/^\s+$/.test(t.char)) {
+            return <span key={idx} className="inline-block w-1.5" />;
+          }
+
           return (
             <span
               key={idx}
-              style={isRed ? { color: '#C20009' } : undefined}
-              className={`inline-block self-start font-sans pt-0.5 px-[1.5px] select-text ${isRed ? redClass : 'opacity-70'}`}
+              className="inline-flex flex-col items-center justify-start p-[1px] select-text self-start"
             >
-              {t.char}
+              {/* Punctuation aligned with the Chinese character row */}
+              <span
+                style={isRed ? { color: '#C20009' } : undefined}
+                className={`font-sans text-[1em] leading-tight select-text ${
+                  isRed ? redClass : 'text-slate-900 dark:text-slate-100 font-normal'
+                }`}
+              >
+                {t.char}
+              </span>
+              {/* Invisible spacer matching the pinyin sub-row so alignment and height remain completely uniform */}
+              <span
+                className={`${pinyinSubTextSize} font-sans leading-tight select-none mt-[2px] invisible pointer-events-none`}
+                aria-hidden="true"
+              >
+                &nbsp;
+              </span>
             </span>
           );
         }
