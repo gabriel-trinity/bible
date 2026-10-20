@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Sliders, Type, Palette, Layout, Sparkles } from 'lucide-react';
+import { X, Sliders, Type, Palette, Layout, Sparkles, Volume2 } from 'lucide-react';
 import {
   PinyinDisplayMode,
   PinyinSize,
@@ -24,6 +24,8 @@ interface ReaderSettingsModalProps {
   setReadingMode: (mode: ReadingMode) => void;
   redLetter: boolean;
   setRedLetter: (enabled: boolean) => void;
+  audioLanguage?: 'zh' | 'en' | 'bilingual';
+  setAudioLanguage?: (lang: 'zh' | 'en' | 'bilingual') => void;
 }
 
 export const ReaderSettingsModal: React.FC<ReaderSettingsModalProps> = ({
@@ -43,6 +45,8 @@ export const ReaderSettingsModal: React.FC<ReaderSettingsModalProps> = ({
   setReadingMode,
   redLetter,
   setRedLetter,
+  audioLanguage = 'zh',
+  setAudioLanguage,
 }) => {
   if (!isOpen) return null;
 
@@ -290,6 +294,53 @@ export const ReaderSettingsModal: React.FC<ReaderSettingsModalProps> = ({
               </button>
             </div>
           </div>
+
+          {/* 7. Audio Playback Language */}
+          {setAudioLanguage && (
+            <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
+              <label className="font-semibold block mb-2 flex items-center gap-1.5 opacity-80">
+                <Volume2 className="w-4 h-4" />
+                <span>Audio Reading Language (朗读语言)</span>
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  onClick={() => setAudioLanguage('zh')}
+                  className={`py-2 px-1.5 rounded-xl border text-center font-medium transition-all cursor-pointer ${
+                    audioLanguage === 'zh'
+                      ? 'border-slate-900 bg-slate-900 text-white dark:border-slate-100 dark:bg-slate-100 dark:text-slate-900 font-bold shadow-xs'
+                      : 'border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <div className="text-xs">🇨🇳 中文</div>
+                  <div className="text-[10px] opacity-70">Mandarin</div>
+                </button>
+
+                <button
+                  onClick={() => setAudioLanguage('en')}
+                  className={`py-2 px-1.5 rounded-xl border text-center font-medium transition-all cursor-pointer ${
+                    audioLanguage === 'en'
+                      ? 'border-slate-900 bg-slate-900 text-white dark:border-slate-100 dark:bg-slate-100 dark:text-slate-900 font-bold shadow-xs'
+                      : 'border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <div className="text-xs">🇺🇸 English</div>
+                  <div className="text-[10px] opacity-70">NIV</div>
+                </button>
+
+                <button
+                  onClick={() => setAudioLanguage('bilingual')}
+                  className={`py-2 px-1.5 rounded-xl border text-center font-medium transition-all cursor-pointer ${
+                    audioLanguage === 'bilingual'
+                      ? 'border-slate-900 bg-slate-900 text-white dark:border-slate-100 dark:bg-slate-100 dark:text-slate-900 font-bold shadow-xs'
+                      : 'border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <div className="text-xs">🌐 双语</div>
+                  <div className="text-[10px] opacity-70">CN + EN</div>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-end">

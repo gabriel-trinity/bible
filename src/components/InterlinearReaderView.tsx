@@ -12,7 +12,8 @@ import { PinyinVerseText } from './PinyinVerseText';
 import { RedLetterText } from './RedLetterText';
 import { TRANSLATIONS } from '../data/bibleBooks';
 import { getVerseTextForTranslation } from '../data/curatedChapters';
-import { Bookmark, FileText } from 'lucide-react';
+import { Bookmark, FileText, Volume2 } from 'lucide-react';
+import { speechService } from '../services/speechService';
 
 interface InterlinearReaderViewProps {
   chapterData: ChapterContent;
@@ -168,6 +169,18 @@ export const InterlinearReaderView: React.FC<InterlinearReaderViewProps> = ({
                   >
                     <Bookmark className={`w-3 h-3 ${isBookmarked ? 'fill-current' : ''}`} />
                     <span>{isBookmarked ? 'Bookmarked' : 'Bookmark'}</span>
+                  </button>
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      speechService.speak(verse.textZh, 'zh', 0.9);
+                    }}
+                    className="flex items-center gap-1 text-[11px] font-sans font-medium px-2 py-0.5 rounded-md cursor-pointer transition-colors opacity-40 hover:opacity-100 hover:bg-slate-200/60 dark:hover:bg-slate-800"
+                    title="Play Chinese Audio (中文朗读)"
+                  >
+                    <Volume2 className="w-3 h-3 text-slate-700 dark:text-slate-300" />
+                    <span>朗读</span>
                   </button>
 
                   {hasNote && (

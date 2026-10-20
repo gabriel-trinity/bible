@@ -111,15 +111,27 @@ export const VerseActionToolbar: React.FC<VerseActionToolbarProps> = ({
           <span>{isBookmarked ? 'Bookmarked' : 'Bookmark'}</span>
         </button>
 
-        {/* Read Aloud Button */}
+        {/* Chinese Audio Button */}
         <button
-          onClick={handleReadAloud}
+          onClick={() => speechService.speak(verse.textZh, 'zh', 0.9)}
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-          title="Listen to Chinese audio"
+          title="Listen to Chinese audio (中文朗读)"
         >
           <Volume2 className="w-3.5 h-3.5" />
-          <span>Listen</span>
+          <span>中文朗读</span>
         </button>
+
+        {/* English Audio Button */}
+        {verse.textEn && (
+          <button
+            onClick={() => speechService.speak(verse.textEn || '', 'en', 0.95)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            title="Listen to English audio (NIV)"
+          >
+            <Volume2 className="w-3.5 h-3.5 opacity-70" />
+            <span>English</span>
+          </button>
+        )}
 
         {/* Highlight Trigger & Color palette */}
         <div className="relative">

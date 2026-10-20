@@ -109,6 +109,7 @@ export default function App() {
   const [audioVerseIndex, setAudioVerseIndex] = useState<number>(0);
   const [speechRate, setSpeechRate] = useState<number>(0.9);
   const [autoAdvanceAudio, setAutoAdvanceAudio] = useState<boolean>(true);
+  const [audioLanguage, setAudioLanguage] = useState<'zh' | 'en' | 'bilingual'>('zh');
 
   // Subtle chapter reading progress at top of viewport
   const [readProgress, setReadProgress] = useState<number>(0);
@@ -151,6 +152,7 @@ export default function App() {
         if (p.redLetter !== undefined) setRedLetter(p.redLetter);
         if (p.primaryTrans) setPrimaryTrans(p.primaryTrans);
         if (p.parallelTrans) setParallelTrans(p.parallelTrans);
+        if (p.audioLanguage) setAudioLanguage(p.audioLanguage);
       } else {
         setReadingMode('interlinear');
         setFontSize(16);
@@ -175,12 +177,13 @@ export default function App() {
           redLetter,
           primaryTrans,
           parallelTrans,
+          audioLanguage,
         })
       );
     } catch {
       // Ignore
     }
-  }, [readingMode, pinyinMode, pinyinSize, colorTones, fontSize, theme, redLetter, primaryTrans, parallelTrans]);
+  }, [readingMode, pinyinMode, pinyinSize, colorTones, fontSize, theme, redLetter, primaryTrans, parallelTrans, audioLanguage]);
 
   // Persist Bookmarks
   useEffect(() => {
@@ -412,7 +415,7 @@ export default function App() {
 
   // Audio Playback handler
   const playVerseAtIndex = useCallback(
-    (index: number) => {
+    (index: number, langOverride?: 'zh' | 'en' | 'bilingual') => {
       if (!chapterData || !chapterData.verses[index]) {
         setIsPlayingAudio(false);
         return;
@@ -420,19 +423,27 @@ export default function App() {
 
       setAudioVerseIndex(index);
       const targetVerse = chapterData.verses[index];
-      const isChinese = primaryTrans === 'CNVS';
-      const textToSpeak = getVerseTextForTranslation(targetVerse, primaryTrans);
-      const langToSpeak = isChinese ? 'zh' : 'en';
+      const lang = langOverride || audioLanguage;
 
-      speechService.speak(textToSpeak, langToSpeak, speechRate, () => {
+      const onVerseFinished = () => {
         if (autoAdvanceAudio && index + 1 < chapterData.verses.length) {
-          playVerseAtIndex(index + 1);
+          playVerseAtIndex(index + 1, lang);
         } else {
           setIsPlayingAudio(false);
         }
-      });
+      };
+
+      if (lang === 'zh') {
+        speechService.speak(targetVerse.textZh, 'zh', speechRate, onVerseFinished);
+      } else if (lang === 'en') {
+        const textEn = targetVerse.textEn || getVerseTextForTranslation(targetVerse, 'NIV');
+        speechService.speak(textEn, 'en', speechRate, onVerseFinished);
+      } else {
+        const textEn = targetVerse.textEn || getVerseTextForTranslation(targetVerse, 'NIV');
+        speechService.speakBilingual(targetVerse.textZh, textEn, speechRate, onVerseFinished);
+      }
     },
-    [chapterData, primaryTrans, speechRate, autoAdvanceAudio]
+    [chapterData, audioLanguage, speechRate, autoAdvanceAudio]
   );
 
   const handleToggleAudio = () => {
@@ -442,6 +453,14 @@ export default function App() {
     } else {
       setIsPlayingAudio(true);
       playVerseAtIndex(audioVerseIndex);
+    }
+  };
+
+  const handleChangeAudioLanguage = (lang: 'zh' | 'en' | 'bilingual') => {
+    setAudioLanguage(lang);
+    if (isPlayingAudio) {
+      speechService.stop();
+      playVerseAtIndex(audioVerseIndex, lang);
     }
   };
 
@@ -650,6 +669,7 @@ export default function App() {
           totalVerses={chapterData.verses.length}
           speechRate={speechRate}
           autoAdvance={autoAdvanceAudio}
+          audioLanguage={audioLanguage}
           theme={theme}
           bookNameZh={currentBook.nameZh}
           bookNameEn={currentBook.nameEn}
@@ -659,6 +679,7 @@ export default function App() {
           onPrevVerse={handleAudioPrevVerse}
           onNextVerse={handleAudioNextVerse}
           onChangeRate={setSpeechRate}
+          onChangeLanguage={handleChangeAudioLanguage}
           onToggleAutoAdvance={() => setAutoAdvanceAudio(!autoAdvanceAudio)}
           onClose={handleStopAudio}
         />
@@ -709,6 +730,8 @@ export default function App() {
         setReadingMode={setReadingMode}
         redLetter={redLetter}
         setRedLetter={setRedLetter}
+        audioLanguage={audioLanguage}
+        setAudioLanguage={handleChangeAudioLanguage}
       />
 
       {/* Scripture Search Modal */}

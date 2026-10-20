@@ -11,7 +11,8 @@ import {
 import { PinyinVerseText } from './PinyinVerseText';
 import { RedLetterText } from './RedLetterText';
 import { getVerseTextForTranslation } from '../data/curatedChapters';
-import { Bookmark, FileText } from 'lucide-react';
+import { Bookmark, FileText, Volume2 } from 'lucide-react';
+import { speechService } from '../services/speechService';
 
 interface SingleReaderViewProps {
   chapterData: ChapterContent;
@@ -164,6 +165,17 @@ export const SingleReaderView: React.FC<SingleReaderViewProps> = ({
                     title={isBookmarked ? 'Remove Bookmark' : 'Add Bookmark'}
                   >
                     <Bookmark className={`w-3.5 h-3.5 ${isBookmarked ? 'fill-current' : ''}`} />
+                  </button>
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      speechService.speak(verse.textZh, 'zh', 0.9);
+                    }}
+                    className="p-1 rounded-md transition-colors cursor-pointer opacity-30 hover:opacity-100 hover:text-slate-900 dark:hover:text-slate-100"
+                    title="Play Chinese Audio (中文朗读)"
+                  >
+                    <Volume2 className="w-3.5 h-3.5" />
                   </button>
 
                   {hasNote && <FileText className="w-3 h-3 opacity-70" />}

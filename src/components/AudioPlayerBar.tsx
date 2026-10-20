@@ -8,6 +8,7 @@ interface AudioPlayerBarProps {
   totalVerses: number;
   speechRate: number;
   autoAdvance: boolean;
+  audioLanguage?: 'zh' | 'en' | 'bilingual';
   theme: AppTheme;
   bookNameZh: string;
   bookNameEn: string;
@@ -17,6 +18,7 @@ interface AudioPlayerBarProps {
   onPrevVerse: () => void;
   onNextVerse: () => void;
   onChangeRate: (rate: number) => void;
+  onChangeLanguage?: (lang: 'zh' | 'en' | 'bilingual') => void;
   onToggleAutoAdvance: () => void;
   onClose: () => void;
 }
@@ -27,7 +29,9 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
   totalVerses,
   speechRate,
   autoAdvance,
+  audioLanguage = 'zh',
   theme,
+  bookNameZh,
   bookNameEn,
   chapter,
   onPlayPause,
@@ -35,6 +39,7 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
   onPrevVerse,
   onNextVerse,
   onChangeRate,
+  onChangeLanguage,
   onToggleAutoAdvance,
   onClose,
 }) => {
@@ -46,7 +51,7 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
           : 'bg-white/95 border-slate-200 text-slate-900'
       }`}
     >
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-2.5 sm:gap-3 flex-wrap sm:flex-nowrap">
         {/* Info */}
         <div className="flex items-center gap-2 min-w-0">
           <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-700 dark:text-slate-300 shrink-0">
@@ -54,16 +59,60 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
           </div>
           <div className="truncate">
             <div className="text-xs font-semibold font-sans truncate">
-              {bookNameEn} Ch {chapter} · Verse {currentVerseNum} / {totalVerses}
+              {bookNameZh} {bookNameEn} · Ch {chapter} · V{currentVerseNum}/{totalVerses}
             </div>
-            <div className="text-[10px] opacity-70 font-sans">
-              Audio Reading {autoAdvance ? '(Auto-advance)' : ''}
+            <div className="text-[10px] opacity-70 font-sans flex items-center gap-1.5">
+              <span className="font-semibold text-slate-900 dark:text-slate-100">
+                {audioLanguage === 'zh'
+                  ? '🇨🇳 中文朗读'
+                  : audioLanguage === 'en'
+                  ? '🇺🇸 English'
+                  : '🌐 双语朗读'}
+              </span>
+              {autoAdvance && <span>· Auto-advance</span>}
             </div>
           </div>
         </div>
 
         {/* Controls */}
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 ml-auto sm:ml-0">
+          {/* Audio Language Switcher */}
+          <div className="flex rounded-md border border-slate-200 dark:border-slate-700 overflow-hidden text-[11px] font-sans">
+            <button
+              onClick={() => onChangeLanguage?.('zh')}
+              className={`px-1.5 py-0.5 transition-colors cursor-pointer ${
+                audioLanguage === 'zh'
+                  ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-bold'
+                  : 'hover:bg-slate-100 dark:hover:bg-slate-800 opacity-70'
+              }`}
+              title="Chinese audio (中文朗读)"
+            >
+              中文
+            </button>
+            <button
+              onClick={() => onChangeLanguage?.('en')}
+              className={`px-1.5 py-0.5 transition-colors cursor-pointer border-l border-slate-200 dark:border-slate-700 ${
+                audioLanguage === 'en'
+                  ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-bold'
+                  : 'hover:bg-slate-100 dark:hover:bg-slate-800 opacity-70'
+              }`}
+              title="English audio (NIV)"
+            >
+              EN
+            </button>
+            <button
+              onClick={() => onChangeLanguage?.('bilingual')}
+              className={`px-1.5 py-0.5 transition-colors cursor-pointer border-l border-slate-200 dark:border-slate-700 ${
+                audioLanguage === 'bilingual'
+                  ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-bold'
+                  : 'hover:bg-slate-100 dark:hover:bg-slate-800 opacity-70'
+              }`}
+              title="Bilingual audio (双语朗读)"
+            >
+              双语
+            </button>
+          </div>
+
           <button
             onClick={onPrevVerse}
             disabled={currentVerseNum <= 1}
@@ -75,7 +124,7 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
 
           <button
             onClick={onPlayPause}
-            className="w-9 h-9 rounded-full bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 flex items-center justify-center shadow-md transition-transform active:scale-95 cursor-pointer"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 flex items-center justify-center shadow-md transition-transform active:scale-95 cursor-pointer"
             title={isPlaying ? 'Pause' : 'Play'}
           >
             {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
@@ -104,7 +153,7 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
               <button
                 key={r}
                 onClick={() => onChangeRate(r)}
-                className={`px-1.5 py-0.5 transition-colors cursor-pointer ${
+                className={`px-1 py-0.5 transition-colors cursor-pointer ${
                   speechRate === r
                     ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-bold'
                     : 'hover:bg-slate-100 dark:hover:bg-slate-800 opacity-70'
@@ -117,7 +166,7 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg opacity-60 hover:opacity-100 ml-1 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg opacity-60 hover:opacity-100 ml-0.5 transition-colors cursor-pointer"
             title="Close audio bar"
           >
             <X className="w-4 h-4" />
