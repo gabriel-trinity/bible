@@ -54,6 +54,27 @@ export const BookPickerModal: React.FC<BookPickerModalProps> = ({
     );
   }, [searchQuery]);
 
+  // Last left off position on this device
+  const lastReadLocation = useMemo(() => {
+    if (!isOpen) return null;
+    try {
+      const raw = localStorage.getItem('pinyin_bible_last_read_v2');
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed.bookId === 'string' && typeof parsed.chapter === 'number') {
+        const b = getBookById(parsed.bookId);
+        if (b) {
+          return {
+            book: b,
+            chapter: parsed.chapter,
+            verseNumber: parsed.verseNumber || 1,
+          };
+        }
+      }
+    } catch {}
+    return null;
+  }, [isOpen]);
+
   // Split into Old Testament and New Testament
   const oldTestamentBooks = useMemo(
     () => filteredBooks.filter((b) => b.testament === 'OT'),
@@ -83,7 +104,7 @@ export const BookPickerModal: React.FC<BookPickerModalProps> = ({
         {/* Left Column: Search & Book List */}
         <div className="w-[45%] sm:w-76 shrink-0 border-r border-slate-200 dark:border-slate-800 flex flex-col p-2.5 sm:p-4 bg-slate-50/70 dark:bg-slate-900/60">
           {/* Pill Search Input */}
-          <div className="relative mb-2 sm:mb-3">
+          <div className="relative mb-2 sm:mb-2.5">
             <div className="flex items-center gap-2 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 focus-within:ring-2 focus-within:ring-slate-900 dark:focus-within:ring-slate-100 transition-all shadow-2xs">
               <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 shrink-0" />
               <input
@@ -104,6 +125,30 @@ export const BookPickerModal: React.FC<BookPickerModalProps> = ({
               )}
             </div>
           </div>
+
+          {/* Quick Resume on this Device */}
+          {lastReadLocation && !searchQuery && (
+            <div className="mb-2 p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-800/90 shadow-2xs flex items-center justify-between text-left">
+              <div className="min-w-0 pr-1.5">
+                <div className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                  Last on Device
+                </div>
+                <div className="text-xs font-bold truncate">
+                  {lastReadLocation.book.nameEn} {lastReadLocation.book.nameZh} {lastReadLocation.chapter}:{lastReadLocation.verseNumber}
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  onSelect(lastReadLocation.book.id, lastReadLocation.chapter, lastReadLocation.verseNumber);
+                  onClose();
+                }}
+                className="px-2 py-1 rounded-lg bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-bold text-[11px] shrink-0 cursor-pointer shadow-xs active:scale-95 transition-transform"
+                title="Resume reading where you left off"
+              >
+                Resume
+              </button>
+            </div>
+          )}
 
           {/* Book List by Testament */}
           <div className="flex-1 overflow-y-auto pr-1 space-y-1">

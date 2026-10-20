@@ -20,6 +20,7 @@ import { CustomPassageModal } from './components/CustomPassageModal';
 import { ChapterNavFooter } from './components/ChapterNavFooter';
 import { NoteModal } from './components/NoteModal';
 import { VersionPickerModal } from './components/VersionPickerModal';
+import { X } from 'lucide-react';
 
 import { BIBLE_BOOKS, getBookById, TRANSLATIONS } from './data/bibleBooks';
 import { fetchChapter } from './services/bibleService';
@@ -41,11 +42,66 @@ const STORAGE_KEY_BOOKMARKS = 'pinyin_bible_bookmarks_v2';
 const STORAGE_KEY_HIGHLIGHTS = 'pinyin_bible_highlights_v2';
 const STORAGE_KEY_NOTES = 'pinyin_bible_notes_v2';
 const STORAGE_KEY_PREFS = 'pinyin_bible_prefs_v2';
+export const STORAGE_KEY_LAST_READ = 'pinyin_bible_last_read_v2';
+
+export interface LastReadLocation {
+  bookId: string;
+  chapter: number;
+  verseNumber: number;
+  timestamp: number;
+}
+
+export const getStoredLastRead = (): LastReadLocation | null => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_LAST_READ);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed.bookId === 'string' && typeof parsed.chapter === 'number') {
+      const bookExists = BIBLE_BOOKS.some((b) => b.id === parsed.bookId);
+      if (bookExists) {
+        return {
+          bookId: parsed.bookId,
+          chapter: Math.max(1, parsed.chapter),
+          verseNumber: typeof parsed.verseNumber === 'number' && parsed.verseNumber > 0 ? parsed.verseNumber : 1,
+          timestamp: parsed.timestamp || Date.now(),
+        };
+      }
+    }
+  } catch {}
+  return null;
+};
 
 export default function App() {
-  // Current Book & Chapter
-  const [currentBookId, setCurrentBookId] = useState<string>('GEN');
-  const [currentChapter, setCurrentChapter] = useState<number>(1);
+  // Device-specific last read state
+  const initialLastRead = useMemo(() => getStoredLastRead(), []);
+
+  // Current Book & Chapter: restored from device's last left off position
+  const [currentBookId, setCurrentBookId] = useState<string>(() => {
+    return initialLastRead?.bookId || 'GEN';
+  });
+  const [currentChapter, setCurrentChapter] = useState<number>(() => {
+    return initialLastRead?.chapter || 1;
+  });
+  const [targetVerseNumber, setTargetVerseNumber] = useState<number | null>(() => {
+    return initialLastRead && initialLastRead.verseNumber > 1 ? initialLastRead.verseNumber : null;
+  });
+  const [resumeToast, setResumeToast] = useState<{
+    bookNameZh: string;
+    bookNameEn: string;
+    chapter: number;
+    verseNumber: number;
+  } | null>(() => {
+    if (initialLastRead && (initialLastRead.bookId !== 'GEN' || initialLastRead.chapter > 1 || initialLastRead.verseNumber > 1)) {
+      const b = getBookById(initialLastRead.bookId) || BIBLE_BOOKS[0];
+      return {
+        bookNameZh: b.nameZh,
+        bookNameEn: b.nameEn,
+        chapter: initialLastRead.chapter,
+        verseNumber: initialLastRead.verseNumber,
+      };
+    }
+    return null;
+  });
   const [chapterData, setChapterData] = useState<ChapterContent | null>(null);
   const [isLoadingChapter, setIsLoadingChapter] = useState<boolean>(true);
 
@@ -114,7 +170,25 @@ export default function App() {
   // Subtle chapter reading progress at top of viewport
   const [readProgress, setReadProgress] = useState<number>(0);
 
+  // Helper to persist current reading location on this device
+  const saveDeviceReadingPosition = useCallback(
+    (verseNum: number) => {
+      try {
+        const data: LastReadLocation = {
+          bookId: currentBookId,
+          chapter: currentChapter,
+          verseNumber: Math.max(1, verseNum),
+          timestamp: Date.now(),
+        };
+        localStorage.setItem(STORAGE_KEY_LAST_READ, JSON.stringify(data));
+      } catch {}
+    },
+    [currentBookId, currentChapter]
+  );
+
   useEffect(() => {
+    let saveTimer: ReturnType<typeof setTimeout> | null = null;
+
     const handleScroll = () => {
       const scrollTop = window.scrollY || document.documentElement.scrollTop;
       const scrollHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
@@ -124,12 +198,88 @@ export default function App() {
       } else {
         setReadProgress(0);
       }
+
+      // Debounce saving top-most visible verse on this device
+      if (saveTimer) clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => {
+        const verseElements = document.querySelectorAll('[id^="verse-"]');
+        let visibleVerse = 1;
+        for (const el of verseElements) {
+          const rect = el.getBoundingClientRect();
+          if (rect.top <= 180 && rect.bottom >= 70) {
+            const num = parseInt(el.id.replace('verse-', ''), 10);
+            if (!isNaN(num) && num > 0) {
+              visibleVerse = num;
+              break;
+            }
+          }
+        }
+        saveDeviceReadingPosition(visibleVerse);
+      }, 300);
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     handleScroll();
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [currentBookId, currentChapter, readingMode, chapterData]);
+
+    return () => {
+      if (saveTimer) clearTimeout(saveTimer);
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [currentBookId, currentChapter, readingMode, chapterData, saveDeviceReadingPosition]);
+
+  // Ensure last read position is saved before leaving the page on this device
+  useEffect(() => {
+    const handleSaveOnExit = () => {
+      const verseElements = document.querySelectorAll('[id^="verse-"]');
+      let visibleVerse = 1;
+      for (const el of verseElements) {
+        const rect = el.getBoundingClientRect();
+        if (rect.top <= 200 && rect.bottom >= 60) {
+          const num = parseInt(el.id.replace('verse-', ''), 10);
+          if (!isNaN(num) && num > 0) {
+            visibleVerse = num;
+            break;
+          }
+        }
+      }
+      try {
+        localStorage.setItem(
+          STORAGE_KEY_LAST_READ,
+          JSON.stringify({
+            bookId: currentBookId,
+            chapter: currentChapter,
+            verseNumber: visibleVerse,
+            timestamp: Date.now(),
+          })
+        );
+      } catch {}
+    };
+
+    window.addEventListener('beforeunload', handleSaveOnExit);
+    window.addEventListener('pagehide', handleSaveOnExit);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        handleSaveOnExit();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleSaveOnExit);
+      window.removeEventListener('pagehide', handleSaveOnExit);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [currentBookId, currentChapter]);
+
+  // Auto-dismiss resume toast
+  useEffect(() => {
+    if (resumeToast) {
+      const t = setTimeout(() => {
+        setResumeToast(null);
+      }, 4000);
+      return () => clearTimeout(t);
+    }
+  }, [resumeToast]);
 
   // Load User Preferences from localStorage
   useEffect(() => {
@@ -226,15 +376,16 @@ export default function App() {
     }
   }, [theme]);
 
-  const [targetVerseNumber, setTargetVerseNumber] = useState<number | null>(null);
-
-  const scrollToVerse = useCallback((verseNum: number) => {
-    setTimeout(() => {
+  const scrollToVerse = useCallback((verseNum: number, behavior: ScrollBehavior = 'smooth') => {
+    const tryScroll = (attemptsLeft: number) => {
       const el = document.getElementById(`verse-${verseNum}`);
       if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.scrollIntoView({ behavior, block: 'start' });
+      } else if (attemptsLeft > 0) {
+        setTimeout(() => tryScroll(attemptsLeft - 1), 100);
       }
-    }, 120);
+    };
+    setTimeout(() => tryScroll(4), 100);
   }, []);
 
   // Fetch chapter data when book or chapter changes
@@ -273,6 +424,15 @@ export default function App() {
     return new Set(bookmarks.map((b) => b.verseKey));
   }, [bookmarks]);
 
+  // Handle Select Verse: highlight and immediately save reading position on this device
+  const handleSelectVerse = useCallback(
+    (verse: VerseItem) => {
+      setActiveVerse(verse);
+      saveDeviceReadingPosition(verse.number);
+    },
+    [saveDeviceReadingPosition]
+  );
+
   // Handle Book, Chapter, and Verse Jump
   const handleSelectBookChapter = (bookId: string, chapter: number, verseNumber?: number) => {
     if (currentBookId === bookId && currentChapter === chapter) {
@@ -281,6 +441,7 @@ export default function App() {
         if (found) {
           setActiveVerse(found);
           scrollToVerse(verseNumber);
+          saveDeviceReadingPosition(verseNumber);
         }
       }
       return;
@@ -288,11 +449,12 @@ export default function App() {
 
     setCurrentBookId(bookId);
     setCurrentChapter(chapter);
-    if (verseNumber) {
+    if (verseNumber && verseNumber > 1) {
       setTargetVerseNumber(verseNumber);
     } else {
       setTargetVerseNumber(null);
     }
+    saveDeviceReadingPosition(verseNumber || 1);
   };
 
   const handleSelectVersion = useCallback((transId: TranslationId) => {
@@ -310,13 +472,21 @@ export default function App() {
 
   const handlePrevChapter = () => {
     if (currentChapter > 1) {
-      setCurrentChapter((prev) => prev - 1);
+      const prevCh = currentChapter - 1;
+      setCurrentChapter(prevCh);
+      setTargetVerseNumber(null);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      saveDeviceReadingPosition(1);
     }
   };
 
   const handleNextChapter = () => {
     if (currentChapter < currentBook.chaptersCount) {
-      setCurrentChapter((prev) => prev + 1);
+      const nextCh = currentChapter + 1;
+      setCurrentChapter(nextCh);
+      setTargetVerseNumber(null);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      saveDeviceReadingPosition(1);
     }
   };
 
@@ -538,6 +708,27 @@ export default function App() {
         onToggleTheme={handleToggleTheme}
       />
 
+      {/* Resume from last read on this device notification */}
+      {resumeToast && (
+        <div className="fixed top-14 sm:top-16 left-1/2 -translate-x-1/2 z-40 animate-in slide-in-from-top-3 fade-in duration-300 max-w-sm w-[92%] sm:w-auto font-sans pointer-events-auto">
+          <div className="flex items-center justify-between gap-2.5 px-3.5 py-2 rounded-2xl shadow-xl border backdrop-blur-md text-xs bg-white/95 dark:bg-slate-900/95 text-slate-800 dark:text-slate-100 border-slate-200 dark:border-slate-800">
+            <div className="flex items-center gap-2 truncate">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+              <span className="truncate">
+                Resumed on this device: <strong className="font-semibold">{resumeToast.bookNameEn} ({resumeToast.bookNameZh}) {resumeToast.chapter}:{resumeToast.verseNumber}</strong>
+              </span>
+            </div>
+            <button
+              onClick={() => setResumeToast(null)}
+              className="p-1 rounded-md opacity-50 hover:opacity-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
+              title="Dismiss"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Main Chapter Content Container */}
       <main className="flex-1 w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 pt-3 sm:pt-6 pb-20 sm:pb-8">
         {/* Chapter Title matching Image 1 */}
@@ -574,7 +765,7 @@ export default function App() {
                 highlights={highlights}
                 bookmarkedVerses={bookmarkedVerseKeys}
                 userNotes={userNotes}
-                onSelectVerse={setActiveVerse}
+                onSelectVerse={handleSelectVerse}
                 onCharClick={(char, pinyin, tone) => setInspectingChar({ char, pinyin, tone })}
                 onPrimaryTransChange={setPrimaryTrans}
                 onParallelTransChange={setParallelTrans}
@@ -599,7 +790,7 @@ export default function App() {
                 highlights={highlights}
                 bookmarkedVerses={bookmarkedVerseKeys}
                 userNotes={userNotes}
-                onSelectVerse={setActiveVerse}
+                onSelectVerse={handleSelectVerse}
                 onCharClick={(char, pinyin, tone) => setInspectingChar({ char, pinyin, tone })}
                 onToggleBookmark={handleToggleBookmarkForVerse}
               />
@@ -620,7 +811,7 @@ export default function App() {
                 highlights={highlights}
                 bookmarkedVerses={bookmarkedVerseKeys}
                 userNotes={userNotes}
-                onSelectVerse={setActiveVerse}
+                onSelectVerse={handleSelectVerse}
                 onCharClick={(char, pinyin, tone) => setInspectingChar({ char, pinyin, tone })}
                 onToggleBookmark={handleToggleBookmarkForVerse}
               />
