@@ -585,12 +585,12 @@ export const CURATED_CHAPTERS: Record<string, ChapterContent> = {
             "textZh": "<red>耶稣说：\"你是以色列人的教师，还不明白这事吗？</red>",
             "textZhCnvs": "<red>耶稣说：\"你是以色列人的教师，还不明白这事吗？</red>",
             "textZhCuv": "<red>耶稣回答说：「你是以色列人的先生，还不明白这事吗？</red>",
-            "textEnNiv": "<red>“Youp are Israel’s teacher,”</red> said Jesus, <red>“and do you not understand these things?</red>",
+            "textEnNiv": "<red>“You are Israel’s teacher,”</red> said Jesus, <red>“and do you not understand these things?</red>",
             "textEnEsv": "Jesus answered him, \"Are you the teacher of Israel and yet you do not understand these things?",
             "textEnNkjv": "Jesus answered and said to him, \"Are you the teacher of Israel, and do not know these things?",
             "textEnNlt": "Jesus replied, \"You are a respected Jewish teacher, and yet you don’t understand these things?",
             "textEnNasb": "Jesus answered and said to him, \"You are the teacher of Israel, and yet you do not understand these things?",
-            "textEn": "<red>“Youp are Israel’s teacher,”</red> said Jesus, <red>“and do you not understand these things?</red>",
+            "textEn": "<red>“You are Israel’s teacher,”</red> said Jesus, <red>“and do you not understand these things?</red>",
             "hasRedLetter": true
       },
       {

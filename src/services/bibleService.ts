@@ -20,13 +20,47 @@ const pendingBookFetches = new Map<string, Promise<StoredBook | null>>();
 let pericopesCache: Record<string, PericopeItem[]> | null = null;
 let pericopesPromise: Promise<Record<string, PericopeItem[]>> | null = null;
 
+/**
+ * Runtime sanitizer that eliminates spurious formatting tag artifacts (p, pn, ln, ld, pln)
+ * attached to English verse text across all translations.
+ */
+export function sanitizeVerseText(text?: string): string {
+  if (!text || typeof text !== 'string') return text || '';
+  return text
+    // 1. Punctuation (including smart/straight quote, comma, etc.) + tag letter (e.g. 'Father,pn', 'Look,pln', 'Write,p', 'you,ld', "Sir,’p", "No,’p")
+    .replace(/([’',;.!?])(pln|pn|ln|ld|p)(?=[”"’)\]]*(\s|<|$))/g, '$1')
+    // 2. Suffixes pn, ln, pln (never genuine English endings except kiln)
+    .replace(/\b([a-zA-Z’']+)(pln|pn|ln)(?=[”"’)\]]*(\s|<|$))/g, (m, word, suff) => {
+      if (word.toLowerCase() === 'kil' && suff === 'n') return m;
+      return word;
+    })
+    // 3. Suffix ld on known corrupted words
+    .replace(/\b(for|and|as|because|but|has|hear|on|Sit|their|they|though|under|understand|when|who|you|a)ld(?=[”"’)\]]*(\s|<|$))/g, '$1')
+    // 4. Suffix p on known corrupted words
+    .replace(/\b(Neither|You|Do|He|So|Who|A|As|Am|See|Stop|Very|Unless|Just|Leave|Now|Though|Is|Be|Rejoice|No|For|Two|This|Whoever|Which|Consider|There|Another|Still|Suppose|Or|Salt|Not|Nine|Anyone|It|Well|His|Everyone|Settle|And|Brother|In|An|Once|Everything|Put|First|Later|After|They|Immediately|About|Because|At|How|Are|Bring|Have|Listen|Make|Watch|Enter|Ask|Therefore|David|Abraham|Blessed|Get|What|Woe|Truly|Why|Then|If|I|My|All|Come|That’s|Haven’t)p(?=[”"’)\]]*(\s|<|$))/g, '$1')
+    // 5. Special Top in Revelation / Matthew opening quotes
+    .replace(/(<red>[“"‘']*)Top\b/g, '$1To');
+}
+
+export function sanitizeVerseItem(v: VerseItem): VerseItem {
+  return {
+    ...v,
+    textEnNiv: v.textEnNiv ? sanitizeVerseText(v.textEnNiv) : undefined,
+    textEnEsv: v.textEnEsv ? sanitizeVerseText(v.textEnEsv) : undefined,
+    textEnNkjv: v.textEnNkjv ? sanitizeVerseText(v.textEnNkjv) : undefined,
+    textEnNlt: v.textEnNlt ? sanitizeVerseText(v.textEnNlt) : undefined,
+    textEnNasb: v.textEnNasb ? sanitizeVerseText(v.textEnNasb) : undefined,
+    textEn: v.textEn ? sanitizeVerseText(v.textEn) : undefined,
+  };
+}
+
 async function loadPericopes(): Promise<Record<string, PericopeItem[]>> {
   if (pericopesCache) return pericopesCache;
   if (pericopesPromise) return pericopesPromise;
 
   pericopesPromise = (async () => {
     try {
-      const res = await fetch('/bibles/pericopes.json');
+      const res = await fetch('/bibles/pericopes.json?v=20261021c', { cache: 'no-cache' });
       if (res.ok) {
         const data = await res.json();
         pericopesCache = data;
@@ -57,9 +91,17 @@ async function loadBookData(bookId: string): Promise<StoredBook | null> {
 
   const fetchPromise = (async () => {
     try {
-      const res = await fetch(`/bibles/books/${normId}.json`);
+      const res = await fetch(`/bibles/books/${normId}.json?v=20261021c`, { cache: 'no-cache' });
       if (res.ok) {
         const data: StoredBook = await res.json();
+        // Sanitize verses in-place
+        if (data && Array.isArray(data.chapters)) {
+          for (const chap of data.chapters) {
+            if (chap && Array.isArray(chap.verses)) {
+              chap.verses = chap.verses.map(sanitizeVerseItem);
+            }
+          }
+        }
         bookCache.set(normId, data);
 
         // Pre-populate chapter cache for every chapter in this book
@@ -242,7 +284,11 @@ export async function fetchChapter(bookId: string, chapter: number): Promise<Cha
 
   // 3. Check curated chapters fallback
   if (CURATED_CHAPTERS[key]) {
-    const curated = { ...CURATED_CHAPTERS[key], pericopes: pericopesForChapter };
+    const curated = {
+      ...CURATED_CHAPTERS[key],
+      pericopes: pericopesForChapter,
+      verses: CURATED_CHAPTERS[key].verses.map(sanitizeVerseItem),
+    };
     chapterCache.set(key, curated);
     return curated;
   }

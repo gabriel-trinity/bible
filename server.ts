@@ -30,6 +30,12 @@ async function startServer() {
   app.all('/api/data', (req: Request, res: Response) => dataHandler(req, res));
   app.all('/api', (req: Request, res: Response) => indexHandler(req, res));
 
+  // Prevent stale mobile browser caching of Bible JSON data
+  app.use('/bibles', (_req: Request, res: Response, next) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    next();
+  });
+
   if (!isProduction) {
     // Dev mode: Vite middleware
     const { createServer: createViteServer } = await import('vite');
