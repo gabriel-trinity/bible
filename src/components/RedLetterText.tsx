@@ -1,4 +1,5 @@
 import React from 'react';
+import { InlineNoteTooltip } from './InlineNoteTooltip';
 
 interface RedLetterTextProps {
   text: string;
@@ -13,29 +14,52 @@ export const RedLetterText: React.FC<RedLetterTextProps> = ({
 }) => {
   if (!text) return null;
 
-  if (!enabled || !text.includes('<red>')) {
+  const hasRed = enabled && text.includes('<red>');
+  const hasNote = text.includes('<note>');
+
+  if (!hasRed && !hasNote) {
     const clean = text.replace(/<\/?red>/g, '');
     return <span className={className}>{clean}</span>;
   }
 
-  // Split on <red>...</red>
-  const parts = text.split(/(<red>[\s\S]*?<\/red>)/g);
+  const parts = text.split(/(<red>|<\/red>|<note>[\s\S]*?<\/note>)/g);
+  let inRed = false;
 
   return (
     <span className={className}>
       {parts.map((part, index) => {
-        if (part.startsWith('<red>') && part.endsWith('</red>')) {
-          const content = part.slice(5, -6);
+        if (!part) return null;
+        if (part === '<red>') {
+          inRed = true;
+          return null;
+        }
+        if (part === '</red>') {
+          inRed = false;
+          return null;
+        }
+        if (part.startsWith('<note>') && part.endsWith('</note>')) {
+          const noteContent = part.slice(6, -7).replace(/<\/?red>/g, '').trim();
+          if (!noteContent) return null;
+          return (
+            <InlineNoteTooltip
+              key={index}
+              note={noteContent}
+              className="mx-0.5 -mt-0.5"
+            />
+          );
+        }
+
+        if (enabled && inRed) {
           return (
             <span
               key={index}
-              style={{ color: '#C20009' }}
-              className="text-[#C20009] font-medium transition-colors"
+              className="text-[#C20009] dark:text-[#f87171] font-medium transition-colors"
             >
-              {content}
+              {part}
             </span>
           );
         }
+
         return <span key={index}>{part}</span>;
       })}
     </span>

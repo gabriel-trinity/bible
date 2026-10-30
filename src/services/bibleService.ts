@@ -2,6 +2,7 @@ import { BIBLE_BOOKS, getBookById } from '../data/bibleBooks';
 import { CURATED_CHAPTERS } from '../data/curatedChapters';
 import { getChapterVerseCount } from '../data/verseCounts';
 import { ChapterContent, VerseItem, PericopeItem } from '../types/bible';
+import { stripVerseMarkup } from './pinyinService';
 
 interface StoredChapter {
   chapter: number;
@@ -60,7 +61,7 @@ async function loadPericopes(): Promise<Record<string, PericopeItem[]>> {
 
   pericopesPromise = (async () => {
     try {
-      const res = await fetch('/bibles/pericopes.json?v=20261021c', { cache: 'no-cache' });
+      const res = await fetch('/bibles/pericopes.json?v=20261029a', { cache: 'no-cache' });
       if (res.ok) {
         const data = await res.json();
         pericopesCache = data;
@@ -91,7 +92,7 @@ async function loadBookData(bookId: string): Promise<StoredBook | null> {
 
   const fetchPromise = (async () => {
     try {
-      const res = await fetch(`/bibles/books/${normId}.json?v=20261021c`, { cache: 'no-cache' });
+      const res = await fetch(`/bibles/books/${normId}.json?v=20261029b`, { cache: 'no-cache' });
       if (res.ok) {
         const data: StoredBook = await res.json();
         // Sanitize verses in-place
@@ -371,8 +372,8 @@ export function searchScriptures(query: string): SearchResult[] {
           bookNameEn: book.nameEn,
           chapter: chap.chapter,
           verseNumber: v.number,
-          textZh: v.textZhCnvs || v.textZhCuv || v.textZh,
-          textEn: v.textEnNiv || v.textEnEsv || v.textEn || '',
+          textZh: stripVerseMarkup(v.textZhCnvs || v.textZhCuv || v.textZh),
+          textEn: stripVerseMarkup(v.textEnNiv || v.textEnEsv || v.textEn || ''),
         });
 
         if (results.length >= 35) return results;
@@ -406,8 +407,8 @@ export function searchScriptures(query: string): SearchResult[] {
               bookNameEn: book.nameEn,
               chapter: chap.chapter,
               verseNumber: v.number,
-              textZh: v.textZhCnvs || v.textZhCuv || v.textZh,
-              textEn: v.textEnNiv || v.textEnEsv || v.textEn || '',
+              textZh: stripVerseMarkup(v.textZhCnvs || v.textZhCuv || v.textZh),
+              textEn: stripVerseMarkup(v.textEnNiv || v.textEnEsv || v.textEn || ''),
             });
 
             if (results.length >= 35) return results;

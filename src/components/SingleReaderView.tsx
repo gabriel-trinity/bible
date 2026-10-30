@@ -10,8 +10,9 @@ import {
 } from '../types/bible';
 import { PinyinVerseText } from './PinyinVerseText';
 import { RedLetterText } from './RedLetterText';
+import { InlineNoteTooltip } from './InlineNoteTooltip';
 import { getVerseTextForTranslation } from '../data/curatedChapters';
-import { Bookmark, FileText, Volume2 } from 'lucide-react';
+import { Bookmark, Volume2 } from 'lucide-react';
 import { speechService } from '../services/speechService';
 
 interface SingleReaderViewProps {
@@ -132,7 +133,7 @@ export const SingleReaderView: React.FC<SingleReaderViewProps> = ({
               <div
                 id={`verse-${verse.number}`}
                 onClick={() => onSelectVerse(verse)}
-                className={`p-3.5 sm:p-4 rounded-2xl transition-all cursor-pointer border scroll-mt-28 ${
+                className={`relative hover:z-20 focus-within:z-20 has-[[aria-expanded=true]]:z-30 p-3.5 sm:p-4 rounded-2xl transition-all cursor-pointer border scroll-mt-28 ${
                   isSelected
                     ? 'border-slate-900 dark:border-slate-100 ring-2 ring-slate-900/30 dark:ring-slate-100/30 shadow-md bg-slate-100/80 dark:bg-slate-800/80'
                     : 'border-slate-200 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 bg-white/60 dark:bg-slate-900/40'
@@ -178,7 +179,17 @@ export const SingleReaderView: React.FC<SingleReaderViewProps> = ({
                     <Volume2 className="w-3.5 h-3.5" />
                   </button>
 
-                  {hasNote && <FileText className="w-3 h-3 opacity-70" />}
+                  {hasNote && (
+                    <InlineNoteTooltip
+                      note={userNotes[verseKey]}
+                      badgeLabel="Study Note"
+                      pinyinMode={pinyinMode}
+                      pinyinSize={pinyinSize}
+                      colorTones={colorTones}
+                      theme={theme}
+                      onCharClick={onCharClick}
+                    />
+                  )}
                 </div>
 
                 <div

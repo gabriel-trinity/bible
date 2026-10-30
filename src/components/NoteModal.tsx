@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, X, Check } from 'lucide-react';
 import { AppTheme, VerseItem } from '../types/bible';
+import { stripVerseMarkup } from '../services/pinyinService';
 
 interface NoteModalProps {
   verse: VerseItem | null;
@@ -67,8 +68,8 @@ export const NoteModal: React.FC<NoteModalProps> = ({
         </div>
 
         <div className="my-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 text-xs leading-relaxed">
-          <p className="font-semibold">{verse.textEn || verse.textZh}</p>
-          <p className="text-[11px] opacity-75 mt-1">{verse.textZh}</p>
+          <p className="font-semibold">{stripVerseMarkup(verse.textEn || verse.textZh)}</p>
+          <p className="text-[11px] opacity-75 mt-1">{stripVerseMarkup(verse.textZh)}</p>
         </div>
 
         <div className="mt-3">

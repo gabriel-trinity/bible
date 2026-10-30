@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Copy, Check, Sparkles } from 'lucide-react';
 import { VerseItem, AppTheme } from '../types/bible';
 import { PinyinVerseText } from './PinyinVerseText';
+import { stripVerseMarkup } from '../services/pinyinService';
 
 interface VerseCardModalProps {
   verse: VerseItem | null;
@@ -65,7 +66,9 @@ export const VerseCardModal: React.FC<VerseCardModalProps> = ({
   const referenceZh = `${bookNameZh} ${chapter}:${verse.number}`;
 
   const handleCopyText = () => {
-    const text = `[${referenceEn} · ${referenceZh}]\n${verse.textEn || ''}\n${verse.textZh}`;
+    const cleanEn = stripVerseMarkup(verse.textEn || '', { stripNotes: true });
+    const cleanZh = stripVerseMarkup(verse.textZh, { stripNotes: false });
+    const text = `[${referenceEn} · ${referenceZh}]\n${cleanEn}\n${cleanZh}`;
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -120,7 +123,7 @@ export const VerseCardModal: React.FC<VerseCardModalProps> = ({
         {/* Scripture Card Preview */}
         <div
           id="scripture-card-preview"
-          className={`rounded-3xl p-6 sm:p-8 border shadow-lg transition-all relative overflow-hidden ${currentStyle.bgClass} ${currentStyle.textClass} ${currentStyle.borderClass}`}
+          className={`rounded-3xl p-6 sm:p-8 border shadow-lg transition-all relative ${currentStyle.bgClass} ${currentStyle.textClass} ${currentStyle.borderClass}`}
         >
           {/* Card Content */}
           <div className="text-center space-y-4 relative z-10">
@@ -132,7 +135,7 @@ export const VerseCardModal: React.FC<VerseCardModalProps> = ({
             {/* Parallel English Verse first/above */}
             {verse.textEn && (
               <div className="text-sm sm:text-base italic font-serif opacity-95 leading-relaxed pt-1">
-                "{verse.textEn}"
+                "{stripVerseMarkup(verse.textEn, { stripNotes: true })}"
               </div>
             )}
 

@@ -36,33 +36,155 @@ export const BIBLICAL_VOCAB_GLOSS: Record<string, { pinyin: string; en: string; 
   喜乐: { pinyin: 'xǐ lè', en: 'Joy / gladness', note: 'Rejoice in the Lord always (Phil 4:4)' },
 };
 
-// Memory cache for parsed verses
+export type ParsedChineseItem =
+  | { kind: 'char'; token: PinyinCharToken }
+  | { kind: 'note'; noteText: string; isRed: boolean };
+
+// Memory caches for parsed verses
 const parseCache = new Map<string, PinyinCharToken[]>();
+const noteItemsCache = new Map<string, ParsedChineseItem[]>();
+
+/**
+ * Strip internal <red> and <note> markup for plain-text display, copying, search, or TTS.
+ */
+export function stripVerseMarkup(
+  text?: string,
+  options?: { stripNotes?: boolean }
+): string {
+  if (!text) return '';
+  let result = text.replace(/<\/?red>/g, '');
+  if (options?.stripNotes) {
+    result = result
+      .replace(/<note>[\s\S]*?<\/note>/g, '')
+      .replace(/\s*（细拉）/g, '');
+  } else {
+    result = result.replace(/<note>([\s\S]*?)<\/note>/g, '（$1）');
+  }
+  return result.trim();
+}
+
+function tokenizePlainChunk(chunk: string, isRed: boolean): PinyinCharToken[] {
+  if (!chunk) return [];
+  try {
+    const rawTokens = pinyin(chunk, { type: 'all' });
+    return rawTokens.map((item) => ({
+      char: item.origin,
+      pinyin: item.pinyin,
+      tone: item.num || 0,
+      isZh: item.isZh ?? false,
+      isRed,
+    }));
+  } catch {
+    return Array.from(chunk).map((char) => ({
+      char,
+      pinyin: '',
+      tone: 0,
+      isZh: /[\u4e00-\u9fa5]/.test(char),
+      isRed,
+    }));
+  }
+}
+
+/**
+ * Parse Chinese scripture text into character tokens and inline note tooltip items.
+ * Both explicit <note>...</note> tags and balanced parenthetical notes （...）
+ * are extracted as inline note items at their exact position in the verse.
+ */
+export function parseChineseVerseWithNotes(text: string): ParsedChineseItem[] {
+  if (noteItemsCache.has(text)) {
+    return noteItemsCache.get(text)!;
+  }
+
+  const parts = text.split(/(<red>|<\/red>|<note>[\s\S]*?<\/note>|（[^（）]+）)/g);
+  const items: ParsedChineseItem[] = [];
+  let inRed = false;
+
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    if (!part) continue;
+
+    if (part === '<red>') {
+      inRed = true;
+      continue;
+    }
+    if (part === '</red>') {
+      inRed = false;
+      continue;
+    }
+
+    if (part.startsWith('<note>') && part.endsWith('</note>')) {
+      const inner = part.slice(6, -7).replace(/<\/?red>/g, '').trim();
+      if (inner) {
+        items.push({ kind: 'note', noteText: inner, isRed: inRed });
+      }
+      continue;
+    }
+
+    if (part.startsWith('（') && part.endsWith('）') && part.length > 2) {
+      // Track any <red> / </red> state changes inside the parenthetical if present
+      const openRedCount = (part.match(/<red>/g) || []).length;
+      const closeRedCount = (part.match(/<\/red>/g) || []).length;
+      const inner = part.slice(1, -1).replace(/<\/?red>/g, '').trim();
+      if (inner) {
+        items.push({ kind: 'note', noteText: inner, isRed: inRed });
+      }
+      if (openRedCount > closeRedCount) inRed = true;
+      else if (closeRedCount > openRedCount) inRed = false;
+      continue;
+    }
+
+    // Check if the next non-empty part is a note; if so, trim trailing space right before the note icon
+    let nextSignificant = '';
+    for (let j = i + 1; j < parts.length; j++) {
+      if (parts[j] && parts[j] !== '<red>' && parts[j] !== '</red>') {
+        nextSignificant = parts[j];
+        break;
+      }
+    }
+    const nextIsNote =
+      nextSignificant.startsWith('<note>') ||
+      (nextSignificant.startsWith('（') && nextSignificant.endsWith('）'));
+
+    const cleanedChunk = nextIsNote ? part.replace(/[ \t\u3000]+$/, '') : part;
+    if (!cleanedChunk) continue;
+
+    const tokens = tokenizePlainChunk(cleanedChunk, inRed);
+    for (const token of tokens) {
+      items.push({ kind: 'char', token });
+    }
+  }
+
+  noteItemsCache.set(text, items);
+  return items;
+}
 
 export function tokenizeChineseWithPinyin(text: string): PinyinCharToken[] {
   if (parseCache.has(text)) {
     return parseCache.get(text)!;
   }
 
-  const hasRed = text.includes('<red>');
-  const cleanText = text.replace(/<\/?red>/g, '');
+  const withoutNotes = text.replace(/<note>[\s\S]*?<\/note>/g, '');
+  const hasRed = withoutNotes.includes('<red>');
+  const cleanText = withoutNotes.replace(/<\/?red>/g, '');
 
   try {
     const rawTokens = pinyin(cleanText, { type: 'all' });
 
-    // Calculate character offsets for red spans
     const redRanges: [number, number][] = [];
     if (hasRed) {
       let cleanCursor = 0;
       let rawCursor = 0;
-      while (rawCursor < text.length) {
-        if (text.startsWith('<red>', rawCursor)) {
-          const endIdx = text.indexOf('</red>', rawCursor + 5);
-          const content = endIdx !== -1 ? text.substring(rawCursor + 5, endIdx) : text.substring(rawCursor + 5);
+      while (rawCursor < withoutNotes.length) {
+        if (withoutNotes.startsWith('<red>', rawCursor)) {
+          const endIdx = withoutNotes.indexOf('</red>', rawCursor + 5);
+          const content =
+            endIdx !== -1
+              ? withoutNotes.substring(rawCursor + 5, endIdx)
+              : withoutNotes.substring(rawCursor + 5);
           const start = cleanCursor;
           cleanCursor += content.length;
           redRanges.push([start, cleanCursor]);
-          rawCursor = endIdx !== -1 ? endIdx + 6 : text.length;
+          rawCursor = endIdx !== -1 ? endIdx + 6 : withoutNotes.length;
         } else {
           cleanCursor++;
           rawCursor++;
@@ -87,7 +209,6 @@ export function tokenizeChineseWithPinyin(text: string): PinyinCharToken[] {
     return result;
   } catch (err) {
     console.error('Error tokenizing pinyin:', err);
-    // Fallback: split by character without pinyin
     return Array.from(cleanText).map((char) => ({
       char,
       pinyin: '',
@@ -98,7 +219,6 @@ export function tokenizeChineseWithPinyin(text: string): PinyinCharToken[] {
 }
 
 export function getToneColor(tone: number, theme: 'parchment' | 'light' | 'sepia' | 'dark' = 'parchment'): string {
-  // Return tailored subtle tone colors
   if (theme === 'dark') {
     switch (tone) {
       case 1:
@@ -114,7 +234,6 @@ export function getToneColor(tone: number, theme: 'parchment' | 'light' | 'sepia
     }
   }
 
-  // Light & Parchment modes
   switch (tone) {
     case 1:
       return 'text-sky-700';

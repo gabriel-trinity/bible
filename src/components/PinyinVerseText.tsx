@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { PinyinDisplayMode, PinyinSize, AppTheme } from '../types/bible';
-import { tokenizeChineseWithPinyin, getToneColor } from '../services/pinyinService';
+import { parseChineseVerseWithNotes, getToneColor } from '../services/pinyinService';
+import { InlineNoteTooltip } from './InlineNoteTooltip';
 
 interface PinyinVerseTextProps {
   text: string;
@@ -23,29 +24,37 @@ export const PinyinVerseText: React.FC<PinyinVerseTextProps> = ({
   onCharClick,
   className = '',
 }) => {
-  const tokens = useMemo(() => tokenizeChineseWithPinyin(text), [text]);
+  const items = useMemo(() => parseChineseVerseWithNotes(text), [text]);
 
   if (pinyinMode === 'off') {
-    const cleanText = text.replace(/<\/?red>/g, '');
-    if (!redLetter || !text.includes('<red>')) {
-      return <span className={`font-sans ${className}`}>{cleanText}</span>;
-    }
-    const parts = text.split(/(<red>[\s\S]*?<\/red>)/g);
     return (
       <span className={`font-sans ${className}`}>
-        {parts.map((p, i) => {
-          if (p.startsWith('<red>') && p.endsWith('</red>')) {
+        {items.map((item, idx) => {
+          if (item.kind === 'note') {
             return (
-              <span
-                key={i}
-                style={{ color: '#C20009' }}
-                className="text-[#C20009] font-medium"
-              >
-                {p.slice(5, -6)}
-              </span>
+              <InlineNoteTooltip
+                key={idx}
+                note={item.noteText}
+                pinyinMode={pinyinMode}
+                pinyinSize={pinyinSize}
+                colorTones={colorTones}
+                theme={theme}
+                onCharClick={onCharClick}
+                className="mx-0.5 -mt-0.5"
+              />
             );
           }
-          return <span key={i}>{p}</span>;
+
+          const t = item.token;
+          const isRed = redLetter && t.isRed;
+          return (
+            <span
+              key={idx}
+              className={isRed ? 'text-[#C20009] dark:text-[#f87171] font-medium' : undefined}
+            >
+              {t.char}
+            </span>
+          );
         })}
       </span>
     );
@@ -55,25 +64,40 @@ export const PinyinVerseText: React.FC<PinyinVerseTextProps> = ({
   if (pinyinMode === 'inline') {
     return (
       <span className={`leading-relaxed font-sans ${className}`}>
-        {tokens.map((t, idx) => {
+        {items.map((item, idx) => {
+          if (item.kind === 'note') {
+            return (
+              <InlineNoteTooltip
+                key={idx}
+                note={item.noteText}
+                pinyinMode={pinyinMode}
+                pinyinSize={pinyinSize}
+                colorTones={colorTones}
+                theme={theme}
+                onCharClick={onCharClick}
+                className="mx-0.5 -mt-0.5"
+              />
+            );
+          }
+
+          const t = item.token;
           const isRed = redLetter && t.isRed;
-          const redClass = isRed ? 'text-[#C20009] font-medium' : '';
+          const redClass = isRed ? 'text-[#C20009] dark:text-[#f87171] font-medium' : '';
+
           if (!t.isZh || !t.pinyin) {
             return (
-              <span
-                key={idx}
-                style={isRed ? { color: '#C20009' } : undefined}
-                className={redClass}
-              >
+              <span key={idx} className={redClass}>
                 {t.char}
               </span>
             );
           }
+
           const toneClass = colorTones
             ? getToneColor(t.tone, theme)
             : isRed
-            ? 'text-[#C20009]/80'
+            ? 'text-[#C20009]/80 dark:text-[#f87171]/80'
             : 'text-slate-500 dark:text-slate-400';
+
           return (
             <span
               key={idx}
@@ -84,12 +108,7 @@ export const PinyinVerseText: React.FC<PinyinVerseTextProps> = ({
               className="inline-block cursor-pointer hover:bg-slate-200/60 dark:hover:bg-slate-800/60 rounded px-0.5 transition-colors"
               title={`${t.char} [${t.pinyin}] - Click for audio & definition`}
             >
-              <span
-                style={isRed ? { color: '#C20009' } : undefined}
-                className={redClass}
-              >
-                {t.char}
-              </span>
+              <span className={redClass}>{t.char}</span>
               <span className={`text-[0.72em] font-sans font-medium ml-0.5 ${toneClass}`}>
                 ({t.pinyin})
               </span>
@@ -105,22 +124,44 @@ export const PinyinVerseText: React.FC<PinyinVerseTextProps> = ({
     const pinyinSizeClass = `pinyin-${pinyinSize}`;
     return (
       <span className={`inline-block font-sans ${pinyinSizeClass} ${className}`}>
-        {tokens.map((t, idx) => {
+        {items.map((item, idx) => {
+          if (item.kind === 'note') {
+            return (
+              <span
+                key={idx}
+                className="inline-flex flex-col-reverse items-center align-bottom mx-0.5"
+              >
+                <span className="inline-flex items-center justify-center h-[1.2em]">
+                  <InlineNoteTooltip
+                    note={item.noteText}
+                    pinyinMode={pinyinMode}
+                    pinyinSize={pinyinSize}
+                    colorTones={colorTones}
+                    theme={theme}
+                    onCharClick={onCharClick}
+                  />
+                </span>
+                <span
+                  className="text-[0.62em] leading-[1.15] invisible select-none pointer-events-none"
+                  aria-hidden="true"
+                >
+                  &nbsp;
+                </span>
+              </span>
+            );
+          }
+
+          const t = item.token;
           const isRed = redLetter && t.isRed;
-          const redClass = isRed ? 'text-[#C20009] font-medium' : '';
+          const redClass = isRed ? 'text-[#C20009] dark:text-[#f87171] font-medium' : '';
+
           if (!t.isZh || !t.pinyin) {
             return (
-              <ruby
-                key={idx}
-                className="select-text"
-              >
-                <span
-                  style={isRed ? { color: '#C20009' } : undefined}
-                  className={`select-text ${redClass}`}
-                >
-                  {t.char}
-                </span>
-                <rt className="invisible select-none" aria-hidden="true">&nbsp;</rt>
+              <ruby key={idx} className="select-text">
+                <span className={`select-text ${redClass}`}>{t.char}</span>
+                <rt className="invisible select-none" aria-hidden="true">
+                  &nbsp;
+                </rt>
               </ruby>
             );
           }
@@ -128,7 +169,7 @@ export const PinyinVerseText: React.FC<PinyinVerseTextProps> = ({
           const toneColorClass = colorTones
             ? getToneColor(t.tone, theme)
             : isRed
-            ? 'text-[#C20009]/80'
+            ? 'text-[#C20009]/80 dark:text-[#f87171]/80'
             : 'text-slate-500 dark:text-slate-400';
 
           return (
@@ -142,7 +183,6 @@ export const PinyinVerseText: React.FC<PinyinVerseTextProps> = ({
               title={`${t.char} [${t.pinyin}] - Click for audio & definition`}
             >
               <span
-                style={isRed ? { color: '#C20009' } : undefined}
                 className={`group-hover:text-slate-900 dark:group-hover:text-slate-100 transition-colors ${redClass}`}
               >
                 {t.char}
@@ -165,9 +205,38 @@ export const PinyinVerseText: React.FC<PinyinVerseTextProps> = ({
 
   return (
     <span className={`inline-flex flex-wrap items-start gap-y-2 font-sans ${className}`}>
-      {tokens.map((t, idx) => {
+      {items.map((item, idx) => {
+        if (item.kind === 'note') {
+          return (
+            <span
+              key={idx}
+              className="inline-flex flex-col items-center justify-start mx-0.5 p-[1px] self-start"
+            >
+              {/* Inline note trigger aligned with the Chinese character row */}
+              <span className="inline-flex items-center justify-center h-[1.25em] leading-tight">
+                <InlineNoteTooltip
+                  note={item.noteText}
+                  pinyinMode={pinyinMode}
+                  pinyinSize={pinyinSize}
+                  colorTones={colorTones}
+                  theme={theme}
+                  onCharClick={onCharClick}
+                />
+              </span>
+              {/* Invisible spacer matching the pinyin sub-row */}
+              <span
+                className={`${pinyinSubTextSize} font-sans leading-tight select-none mt-[2px] invisible pointer-events-none`}
+                aria-hidden="true"
+              >
+                &nbsp;
+              </span>
+            </span>
+          );
+        }
+
+        const t = item.token;
         const isRed = redLetter && t.isRed;
-        const redClass = isRed ? 'text-[#C20009] font-medium' : '';
+        const redClass = isRed ? 'text-[#C20009] dark:text-[#f87171] font-medium' : '';
 
         if (!t.isZh || !t.pinyin) {
           if (/^\s+$/.test(t.char)) {
@@ -181,14 +250,13 @@ export const PinyinVerseText: React.FC<PinyinVerseTextProps> = ({
             >
               {/* Punctuation aligned with the Chinese character row */}
               <span
-                style={isRed ? { color: '#C20009' } : undefined}
                 className={`font-sans text-[1em] leading-tight select-text ${
                   isRed ? redClass : 'text-slate-900 dark:text-slate-100 font-normal'
                 }`}
               >
                 {t.char}
               </span>
-              {/* Invisible spacer matching the pinyin sub-row so alignment and height remain completely uniform */}
+              {/* Invisible spacer matching the pinyin sub-row */}
               <span
                 className={`${pinyinSubTextSize} font-sans leading-tight select-none mt-[2px] invisible pointer-events-none`}
                 aria-hidden="true"
@@ -202,7 +270,7 @@ export const PinyinVerseText: React.FC<PinyinVerseTextProps> = ({
         const toneColorClass = colorTones
           ? getToneColor(t.tone, theme)
           : isRed
-          ? 'text-[#C20009]/80'
+          ? 'text-[#C20009]/80 dark:text-[#f87171]/80'
           : 'text-slate-500 dark:text-slate-400';
 
         return (
@@ -217,7 +285,6 @@ export const PinyinVerseText: React.FC<PinyinVerseTextProps> = ({
           >
             {/* Chinese Character on Top */}
             <span
-              style={isRed ? { color: '#C20009' } : undefined}
               className={`font-sans text-[1em] leading-tight select-text group-hover:text-slate-900 dark:group-hover:text-slate-100 transition-colors ${
                 isRed ? redClass : 'font-normal'
               }`}

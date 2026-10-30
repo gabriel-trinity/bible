@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { HighlightColor, AppTheme, VerseItem } from '../types/bible';
 import { speechService } from '../services/speechService';
+import { stripVerseMarkup } from '../services/pinyinService';
 
 interface VerseActionToolbarProps {
   verse: VerseItem;
@@ -54,7 +55,9 @@ export const VerseActionToolbar: React.FC<VerseActionToolbarProps> = ({
   const referenceStr = `${bookNameEn} ${chapter}:${verse.number} (${bookNameZh} ${chapter}:${verse.number})`;
 
   const handleCopy = () => {
-    const textToCopy = `[${referenceStr}]\n${verse.textEn || ''}\n${verse.textZh}`;
+    const cleanEn = stripVerseMarkup(verse.textEn || '', { stripNotes: true });
+    const cleanZh = stripVerseMarkup(verse.textZh, { stripNotes: false });
+    const textToCopy = `[${referenceStr}]\n${cleanEn}\n${cleanZh}`;
     navigator.clipboard.writeText(textToCopy);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);

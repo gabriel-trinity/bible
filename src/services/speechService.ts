@@ -1,3 +1,5 @@
+import { stripVerseMarkup } from './pinyinService';
+
 class SpeechManager {
   private synth: SpeechSynthesis | null = null;
   private currentUtterance: SpeechSynthesisUtterance | null = null;
@@ -67,7 +69,7 @@ class SpeechManager {
       this.initVoices();
     }
 
-    const cleanText = text.trim();
+    const cleanText = stripVerseMarkup(text, { stripNotes: true });
     if (!cleanText) {
       if (onEnd) onEnd();
       return;

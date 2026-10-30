@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { UserBookmark, HighlightColor, AppTheme } from '../types/bible';
 import { getBookById } from '../data/bibleBooks';
+import { stripVerseMarkup } from '../services/pinyinService';
 
 interface BookmarksDrawerProps {
   isOpen: boolean;
@@ -110,7 +111,7 @@ export const BookmarksDrawer: React.FC<BookmarksDrawerProps> = ({
     const text = filteredBookmarks
       .map((b) => {
         const book = getBookById(b.bookId);
-        return `[${book?.nameEn || b.bookId} ${b.chapter}:${b.verseNumber}]\n${b.textEn}\n${b.textZh}\n`;
+        return `[${book?.nameEn || b.bookId} ${b.chapter}:${b.verseNumber}]\n${stripVerseMarkup(b.textEn)}\n${stripVerseMarkup(b.textZh)}\n`;
       })
       .join('\n---\n\n');
 
@@ -302,10 +303,10 @@ export const BookmarksDrawer: React.FC<BookmarksDrawerProps> = ({
 
                       <div className="mt-2 space-y-1.5">
                         <p className="text-xs sm:text-sm leading-relaxed font-medium">
-                          {b.textEn}
+                          {stripVerseMarkup(b.textEn)}
                         </p>
                         <p className="text-xs opacity-80 leading-relaxed border-t border-slate-100 dark:border-slate-700/60 pt-1">
-                          {b.textZh}
+                          {stripVerseMarkup(b.textZh)}
                         </p>
                       </div>
 
