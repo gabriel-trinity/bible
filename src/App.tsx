@@ -27,7 +27,7 @@ import { X } from 'lucide-react';
 import { BIBLE_BOOKS, getBookById, TRANSLATIONS } from './data/bibleBooks';
 import { fetchChapter } from './services/bibleService';
 import { speechService } from './services/speechService';
-import { fetchVerseOfTheDay } from './services/votdService';
+import { fetchVerseOfTheDay, getLocalDateKey } from './services/votdService';
 import {
   ChapterContent,
   VerseItem,
@@ -342,11 +342,15 @@ export default function App() {
     }
   }, [resumeToast]);
 
-  // Fetch Bible.com Verse of the Day on load
+  const votdDayRef = useRef<string>(getLocalDateKey());
+
+  // Fetch Bible.com Verse of the Day on load & whenever stale/new local day
   const loadVotd = useCallback((forceRefresh = false) => {
+    const todayKey = getLocalDateKey();
     setIsLoadingVotd(true);
     fetchVerseOfTheDay(forceRefresh)
       .then((data) => {
+        votdDayRef.current = todayKey;
         setVotdData(data);
       })
       .finally(() => {
@@ -358,6 +362,32 @@ export default function App() {
     loadVotd(false);
   }, [loadVotd]);
 
+  // Auto-refresh Verse of the Day if calendar date rolls over or user returns after midnight
+  useEffect(() => {
+    const checkAndRefreshIfStale = () => {
+      const currentDayKey = getLocalDateKey();
+      if (currentDayKey !== votdDayRef.current) {
+        loadVotd(true);
+      }
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        checkAndRefreshIfStale();
+      }
+    };
+
+    window.addEventListener('focus', checkAndRefreshIfStale);
+    document.addEventListener('visibilitychange', handleVisibility);
+    const interval = setInterval(checkAndRefreshIfStale, 60_000);
+
+    return () => {
+      window.removeEventListener('focus', checkAndRefreshIfStale);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      clearInterval(interval);
+    };
+  }, [loadVotd]);
+
   const handleChangeTab = useCallback((tab: AppTab) => {
     setActiveTab(tab);
     speechService.stop();
@@ -365,9 +395,11 @@ export default function App() {
     if (tab === 'votd') {
       setActiveVerse(null);
       setVerseSelection(null);
+      const dayChanged = getLocalDateKey() !== votdDayRef.current;
+      loadVotd(dayChanged);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-  }, []);
+  }, [loadVotd]);
 
   // Load User Preferences from localStorage
   useEffect(() => {

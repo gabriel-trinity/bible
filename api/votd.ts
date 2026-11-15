@@ -46,7 +46,7 @@ interface CacheRecord {
   payload: VotdPayload;
 }
 
-let votdCache: CacheRecord | null = null;
+const votdCache = new Map<string, CacheRecord>();
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
 const FALLBACK_VERSES: Array<{ referenceHuman: string; usfm: string; content: string }> = [
@@ -404,28 +404,47 @@ function getFallbackPayload(): VotdPayload {
   };
 }
 
-export async function getVerseOfTheDay(forceRefresh = false): Promise<VotdPayload> {
+export async function getVerseOfTheDay(
+  forceRefresh = false,
+  requestedDay?: number
+): Promise<VotdPayload> {
+  const validDay =
+    typeof requestedDay === 'number' &&
+    Number.isInteger(requestedDay) &&
+    requestedDay >= 1 &&
+    requestedDay <= 366
+      ? requestedDay
+      : undefined;
+
   const utcDayKey = new Date().toISOString().slice(0, 10);
+  const cacheKey = validDay ? `day-${validDay}-${utcDayKey.slice(0, 4)}` : `utc-${utcDayKey}`;
+  const cached = votdCache.get(cacheKey);
+
   if (
     !forceRefresh &&
-    votdCache &&
-    votdCache.dayKey === utcDayKey &&
-    Date.now() - votdCache.timestamp < CACHE_TTL_MS
+    cached &&
+    cached.payload.source === 'bible.com' &&
+    Date.now() - cached.timestamp < CACHE_TTL_MS
   ) {
-    return votdCache.payload;
+    return cached.payload;
   }
 
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-    const response = await fetch('https://www.bible.com/verse-of-the-day', {
+    const targetUrl = validDay
+      ? `https://www.bible.com/verse-of-the-day?day=${validDay}`
+      : 'https://www.bible.com/verse-of-the-day';
+
+    const response = await fetch(targetUrl, {
       signal: controller.signal,
       headers: {
         'User-Agent':
           'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
         Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.9',
+        'Cache-Control': 'no-cache',
       },
     });
     clearTimeout(timeoutId);
@@ -434,11 +453,11 @@ export async function getVerseOfTheDay(forceRefresh = false): Promise<VotdPayloa
       const html = await response.text();
       const parsed = parseVotdFromBibleComHtml(html);
       if (parsed) {
-        votdCache = {
-          dayKey: utcDayKey,
+        votdCache.set(cacheKey, {
+          dayKey: cacheKey,
           timestamp: Date.now(),
           payload: parsed,
-        };
+        });
         return parsed;
       }
     }
@@ -446,8 +465,8 @@ export async function getVerseOfTheDay(forceRefresh = false): Promise<VotdPayloa
     console.warn('Failed to fetch bible.com/verse-of-the-day:', err);
   }
 
-  if (votdCache) {
-    return votdCache.payload;
+  if (cached) {
+    return cached.payload;
   }
   return getFallbackPayload();
 }
@@ -455,12 +474,14 @@ export async function getVerseOfTheDay(forceRefresh = false): Promise<VotdPayloa
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Content-Type', 'application/json');
-  res.setHeader('Cache-Control', 'public, max-age=300');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
 
   try {
     const url = new URL(req.url || '/', `http://${req.headers?.host || 'localhost'}`);
     const forceRefresh = url.searchParams.get('refresh') === '1';
-    const payload = await getVerseOfTheDay(forceRefresh);
+    const dayParam = url.searchParams.get('day');
+    const requestedDay = dayParam ? parseInt(dayParam, 10) : undefined;
+    const payload = await getVerseOfTheDay(forceRefresh, requestedDay);
 
     res.statusCode = 200;
     res.end(JSON.stringify(payload));
@@ -473,12 +494,14 @@ export default async function handler(req: any, res: any) {
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const forceRefresh = url.searchParams.get('refresh') === '1';
-  const payload = await getVerseOfTheDay(forceRefresh);
+  const dayParam = url.searchParams.get('day');
+  const requestedDay = dayParam ? parseInt(dayParam, 10) : undefined;
+  const payload = await getVerseOfTheDay(forceRefresh, requestedDay);
   return new Response(JSON.stringify(payload), {
     headers: {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': '*',
-      'Cache-Control': 'public, max-age=300',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
     },
   });
 }

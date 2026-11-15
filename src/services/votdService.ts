@@ -4,8 +4,26 @@ import { fetchChapter } from './bibleService';
 import { stripVerseMarkup } from './pinyinService';
 import { BibleBook, TranslationId, VerseItem, VotdData, VotdEntry, VotdParsedRef } from '../types/bible';
 
+const CLIENT_CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
+
 let cachedVotd: VotdData | null = null;
+let cachedDayKey: string | null = null;
+let cachedAt: number = 0;
 let pendingPromise: Promise<VotdData> | null = null;
+let pendingRequestId: number = 0;
+
+export function getLocalDateKey(d: Date = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+export function getLocalDayOfYear(d: Date = new Date()): number {
+  const startUtc = Date.UTC(d.getFullYear(), 0, 0);
+  const currentUtc = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+  return Math.max(1, Math.min(366, Math.floor((currentUtc - startUtc) / 86_400_000)));
+}
 
 /**
  * Resolve either a parsed USFM ref or a human-readable string like "John 14:27" or "Psalms 139:10"
@@ -44,35 +62,66 @@ export function resolveVotdRef(entry: VotdEntry): VotdParsedRef | null {
 }
 
 export async function fetchVerseOfTheDay(forceRefresh = false): Promise<VotdData> {
-  if (!forceRefresh && cachedVotd) {
+  const now = new Date();
+  const localDayKey = getLocalDateKey(now);
+  const localDayOfYear = getLocalDayOfYear(now);
+
+  const cacheValid =
+    !forceRefresh &&
+    cachedVotd &&
+    cachedVotd.source === 'bible.com' &&
+    cachedDayKey === localDayKey &&
+    Date.now() - cachedAt < CLIENT_CACHE_TTL_MS;
+
+  if (cacheValid && cachedVotd) {
     return cachedVotd;
   }
+
   if (!forceRefresh && pendingPromise) {
     return pendingPromise;
   }
 
-  pendingPromise = (async () => {
+  const requestId = ++pendingRequestId;
+  const requestPromise = (async () => {
     try {
-      const url = forceRefresh ? '/api/votd?refresh=1' : '/api/votd';
-      const res = await fetch(url, { cache: 'no-cache' });
+      const params = new URLSearchParams();
+      params.set('day', String(localDayOfYear));
+      if (forceRefresh) {
+        params.set('refresh', '1');
+        params.set('_t', String(Date.now()));
+      }
+      const res = await fetch(`/api/votd?${params.toString()}`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' },
+      });
       if (res.ok) {
         const data: VotdData = await res.json();
-        cachedVotd = data;
+        if (data.source === 'bible.com') {
+          cachedVotd = data;
+          cachedDayKey = localDayKey;
+          cachedAt = Date.now();
+        }
         return data;
       }
     } catch (err) {
       console.warn('Failed to load /api/votd:', err);
     } finally {
-      pendingPromise = null;
+      if (pendingRequestId === requestId) {
+        pendingPromise = null;
+      }
+    }
+
+    if (cachedVotd && cachedDayKey === localDayKey) {
+      return cachedVotd;
     }
 
     // Client-side emergency fallback if API is unreachable
     const fallback: VotdData = {
       source: 'fallback',
       sourceUrl: 'https://www.bible.com/verse-of-the-day',
-      fetchedAt: new Date().toISOString(),
+      fetchedAt: now.toISOString(),
       today: {
-        day: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+        day: now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
         referenceHuman: 'John 14:27',
         usfm: ['JHN.14.27'],
         parsedRef: {
@@ -92,7 +141,8 @@ export async function fetchVerseOfTheDay(forceRefresh = false): Promise<VotdData
     return fallback;
   })();
 
-  return pendingPromise;
+  pendingPromise = requestPromise;
+  return requestPromise;
 }
 
 export interface HydratedVotd {
