@@ -79,6 +79,8 @@ export interface ChapterContent {
 
 export type ReadingMode = 'split' | 'interlinear' | 'single';
 
+export type ReaderFont = 'serif' | 'sans';
+
 export type PinyinDisplayMode = 'below' | 'inline' | 'above' | 'off';
 
 export type PinyinSize = 'sm' | 'base' | 'lg';
@@ -121,3 +123,61 @@ export interface PinyinCharToken {
   isZh: boolean;
   isRed?: boolean;
 }
+
+export interface VotdParsedRef {
+  raw: string;
+  bookId: string;
+  chapter: number;
+  verseStart: number;
+  verseEnd: number;
+}
+
+export interface VotdImage {
+  id: number;
+  url: string;
+  thumbnailUrl: string;
+  attribution: string;
+  category: string;
+}
+
+export interface VotdEntry {
+  day: string;
+  dateIso?: string;
+  referenceHuman: string;
+  usfm: string[];
+  parsedRef: VotdParsedRef | null;
+  content: string;
+  versionAbbr: string;
+  versionTitle?: string;
+  images: VotdImage[];
+}
+
+export interface VotdData {
+  source: 'bible.com' | 'fallback';
+  sourceUrl: string;
+  fetchedAt: string;
+  numericDayOfYear?: number;
+  today: VotdEntry;
+  history: VotdEntry[];
+}
+
+export type VerseSelectionTrigger = 'tap' | 'drag' | 'longpress';
+
+export interface VerseSelectionInfo {
+  selectedText: string;
+  trigger: VerseSelectionTrigger;
+  lang?: 'en' | 'zh';
+}
+
+export interface VerseSnippet {
+  id: string;
+  verseKey: string;
+  bookId: string;
+  chapter: number;
+  verseNumber: number;
+  text: string;
+  translation?: TranslationId;
+  createdAt: number;
+}
+
+

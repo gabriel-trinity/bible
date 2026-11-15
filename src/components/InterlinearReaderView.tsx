@@ -7,13 +7,14 @@ import {
   HighlightColor,
   TranslationId,
   VerseItem,
+  VerseSelectionInfo,
+  ReaderFont,
 } from '../types/bible';
 import { PinyinVerseText } from './PinyinVerseText';
 import { RedLetterText } from './RedLetterText';
 import { InlineNoteTooltip } from './InlineNoteTooltip';
 import { getVerseTextForTranslation } from '../data/curatedChapters';
-import { Bookmark, Volume2 } from 'lucide-react';
-import { speechService } from '../services/speechService';
+import { useVerseTextSelection } from '../hooks/useVerseTextSelection';
 
 interface InterlinearReaderViewProps {
   chapterData: ChapterContent;
@@ -23,6 +24,9 @@ interface InterlinearReaderViewProps {
   pinyinSize: PinyinSize;
   colorTones: boolean;
   fontSize: number;
+  readerFont?: ReaderFont;
+  showFootnotes?: boolean;
+  showNumbersAndTitles?: boolean;
   theme: AppTheme;
   redLetter?: boolean;
   activeVerseNumber: number | null;
@@ -30,16 +34,16 @@ interface InterlinearReaderViewProps {
   highlights: Record<string, HighlightColor>;
   bookmarkedVerses: Set<string>;
   userNotes: Record<string, string>;
-  onSelectVerse: (verse: VerseItem) => void;
+  onSelectVerse: (verse: VerseItem, selection?: VerseSelectionInfo) => void;
   onCharClick: (char: string, pinyin: string, tone: number) => void;
   onToggleBookmark?: (verse: VerseItem) => void;
 }
 
 const HIGHLIGHT_STYLES: Record<HighlightColor, string> = {
-  gold: 'bg-amber-200/50 dark:bg-amber-900/30',
-  emerald: 'bg-emerald-200/50 dark:bg-emerald-900/30',
-  sky: 'bg-sky-200/50 dark:bg-sky-900/30',
-  rose: 'bg-rose-200/50 dark:bg-rose-900/30',
+  gold: 'bg-amber-200/45 dark:bg-amber-900/30',
+  emerald: 'bg-emerald-200/45 dark:bg-emerald-900/30',
+  sky: 'bg-sky-200/45 dark:bg-sky-900/30',
+  rose: 'bg-rose-200/45 dark:bg-rose-900/30',
 };
 
 export const InterlinearReaderView: React.FC<InterlinearReaderViewProps> = ({
@@ -50,6 +54,9 @@ export const InterlinearReaderView: React.FC<InterlinearReaderViewProps> = ({
   pinyinSize,
   colorTones,
   fontSize,
+  readerFont = 'serif',
+  showFootnotes = true,
+  showNumbersAndTitles = true,
   theme,
   redLetter = true,
   activeVerseNumber,
@@ -59,131 +66,159 @@ export const InterlinearReaderView: React.FC<InterlinearReaderViewProps> = ({
   userNotes,
   onSelectVerse,
   onCharClick,
-  onToggleBookmark,
 }) => {
   const isPrimaryChinese = primaryTrans === 'CNVS';
   const isParallelChinese = parallelTrans === 'CNVS';
+  const proseFontClass = readerFont === 'serif' ? 'font-serif' : 'font-sans';
+  const isAudioFocusActive = speakingVerseNumber !== null;
+
+  const { containerSelectionHandlers, handleVerseClick } = useVerseTextSelection({
+    verses: chapterData.verses,
+    onSelectVerse,
+  });
 
   return (
-    <div className="w-full max-w-4xl mx-auto pb-24 px-3 sm:px-4 space-y-4 font-sans text-slate-900 dark:text-slate-100">
-      {chapterData.verses.map((verse) => {
+    <div
+      {...containerSelectionHandlers}
+      className="w-full max-w-xl mx-auto pb-28 px-5 sm:px-6 font-sans text-slate-900 dark:text-slate-100"
+    >
+      {chapterData.verses.map((verse, idx) => {
         const verseKey = `${chapterData.bookId}.${chapterData.chapter}.${verse.number}`;
         const isSelected = activeVerseNumber === verse.number;
         const isSpeaking = speakingVerseNumber === verse.number;
         const highlight = highlights[verseKey];
         const isBookmarked = bookmarkedVerses.has(verseKey);
         const hasNote = Boolean(userNotes[verseKey]);
+        const isLastVerse = idx === chapterData.verses.length - 1;
+        const nextHasPericope = Boolean(
+          !isLastVerse &&
+            chapterData.pericopes?.some((p) => p.start === chapterData.verses[idx + 1].number)
+        );
 
-        const highlightClass = highlight ? HIGHLIGHT_STYLES[highlight] : 'border-slate-200 dark:border-slate-800/80';
+        const highlightClass = highlight ? `${HIGHLIGHT_STYLES[highlight]} rounded-xl px-3 -mx-3` : '';
 
         const textLeft = getVerseTextForTranslation(verse, primaryTrans);
         const textRight = getVerseTextForTranslation(verse, parallelTrans);
 
-        // Enforce: English to show first / above Chinese in bilingual feature
-        // Determine whether Left is English or Chinese
+        // Enforce English above Chinese in bilingual view
         let topText = textLeft;
-        let topTrans = primaryTrans;
         let isTopChinese = isPrimaryChinese;
 
         let bottomText = textRight;
-        let bottomTrans = parallelTrans;
         let isBottomChinese = isParallelChinese;
 
-        // If primary is Chinese and parallel is English, swap rows so English is on top!
         if (isPrimaryChinese && !isParallelChinese) {
           topText = textRight;
-          topTrans = parallelTrans;
           isTopChinese = false;
-
           bottomText = textLeft;
-          bottomTrans = primaryTrans;
           isBottomChinese = true;
         }
 
         const pericope = chapterData.pericopes?.find((p) => p.start === verse.number);
+        const isDimmed = isAudioFocusActive && !isSpeaking;
 
         return (
           <React.Fragment key={verse.number}>
-            {pericope && (
-              <div className="pt-6 pb-2.5 border-b border-slate-200 dark:border-slate-800 mb-3.5">
-                <div className="flex items-start gap-2.5">
-                  <div className="h-2 w-2 rounded-full bg-slate-900 dark:bg-slate-100 mt-2 shrink-0" />
-                  <div className="flex-1">
-                    {pericope.titleEn && (
-                      <h4 className="font-bold text-base sm:text-lg tracking-tight font-sans text-slate-900 dark:text-slate-100">
-                        {pericope.titleEn}
-                      </h4>
-                    )}
-                    {pericope.titleZh && (
-                      <div className={pericope.titleEn ? 'mt-1.5' : ''}>
-                        <div className="font-semibold text-sm sm:text-base text-slate-800 dark:text-slate-200 font-sans">
-                          {pericope.titleZh}
-                        </div>
-                        {pericope.titlePinyin && (
-                          <div className="text-xs text-slate-500 dark:text-slate-400 font-sans mt-0.5">
-                            {pericope.titlePinyin}
-                          </div>
-                        )}
-                      </div>
-                    )}
+            {showNumbersAndTitles && pericope && (
+              <div
+                className={`pt-6 pb-2 transition-opacity duration-300 ${
+                  isAudioFocusActive ? 'opacity-40' : 'opacity-100'
+                }`}
+              >
+                {pericope.titleEn && (
+                  <h4
+                    className={`font-bold text-lg sm:text-xl tracking-tight text-slate-900 dark:text-slate-100 ${proseFontClass}`}
+                  >
+                    {pericope.titleEn}
+                  </h4>
+                )}
+                {pericope.titleZh && (
+                  <div
+                    className={`font-semibold text-sm sm:text-base text-slate-700 dark:text-slate-300 font-sans ${
+                      pericope.titleEn ? 'mt-1' : ''
+                    }`}
+                    style={{ lineHeight: pinyinMode === 'below' ? 2.0 : 1.5 }}
+                  >
+                    <PinyinVerseText
+                      text={pericope.titleZh}
+                      overridePinyin={pericope.titlePinyin}
+                      pinyinMode={pinyinMode}
+                      pinyinSize={pinyinSize}
+                      colorTones={colorTones}
+                      theme={theme}
+                      redLetter={false}
+                      showFootnotes={false}
+                      onCharClick={onCharClick}
+                    />
                   </div>
-                </div>
+                )}
               </div>
             )}
 
             <div
               id={`verse-${verse.number}`}
-              onClick={() => onSelectVerse(verse)}
-              className={`relative hover:z-20 focus-within:z-20 has-[[aria-expanded=true]]:z-30 p-4 sm:p-5 rounded-2xl border transition-all cursor-pointer scroll-mt-28 ${
-                isSelected
-                  ? 'border-slate-900 dark:border-slate-100 ring-2 ring-slate-900/30 dark:ring-slate-100/30 shadow-md bg-slate-100/80 dark:bg-slate-800/80'
-                  : 'hover:border-slate-300 dark:hover:border-slate-700 bg-white/60 dark:bg-slate-900/40 shadow-2xs'
-              } ${isSpeaking ? 'ring-2 ring-slate-900 bg-slate-200/50 dark:bg-slate-800' : ''} ${highlightClass}`}
+              data-verse-number={verse.number}
+              onClick={() => handleVerseClick(verse)}
+              className={`relative hover:z-20 focus-within:z-20 has-[[aria-expanded=true]]:z-30 py-4 transition-all duration-300 cursor-pointer scroll-mt-32 ${
+                !isLastVerse && !nextHasPericope
+                  ? 'border-b border-slate-200/80 dark:border-slate-800/80'
+                  : ''
+              } ${isDimmed ? 'opacity-40' : 'opacity-100'} ${
+                isSelected && !highlight
+                  ? 'bg-slate-100/80 dark:bg-slate-800/60 rounded-xl px-3 -mx-3'
+                  : highlightClass
+              }`}
             >
-              {/* Header: Verse Number & Badges */}
-              <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-200 dark:border-slate-800">
-                <div className="flex items-center gap-2">
-                  {!isTopChinese && (
-                    <span
-                      className={`font-sans font-bold text-xs w-6 h-6 rounded-full flex items-center justify-center transition-colors select-none ${
-                        isSelected || isSpeaking
-                          ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-xs'
-                          : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
-                      }`}
-                    >
-                      {verse.number}
-                    </span>
-                  )}
+              {/* Vertical left black indicator bar matching active speaker/selection layout */}
+              {(isSpeaking || isSelected) && (
+                <span
+                  aria-hidden="true"
+                  className="absolute -left-3.5 sm:-left-5 top-3 bottom-3 w-[2.5px] rounded-full bg-slate-900 dark:bg-slate-100"
+                />
+              )}
 
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onToggleBookmark?.(verse);
-                    }}
-                    className={`flex items-center gap-1 text-[11px] font-sans font-medium px-2 py-0.5 rounded-md cursor-pointer transition-colors ${
-                      isBookmarked
-                        ? 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300'
-                        : 'opacity-40 hover:opacity-100'
+              {/* Top Row (English first if bilingual) */}
+              <div
+                data-verse-lang={isTopChinese ? 'zh' : 'en'}
+                className="transition-all select-text cursor-text"
+                style={{
+                  fontSize: `${fontSize}px`,
+                  lineHeight: isTopChinese && pinyinMode === 'below' ? 2.3 : 1.75,
+                }}
+              >
+                {showNumbersAndTitles && (
+                  <sup
+                    className={`text-[0.64em] font-sans font-medium mr-1.5 select-none tabular-nums ${
+                      isSpeaking
+                        ? 'text-slate-700 dark:text-slate-300'
+                        : 'text-slate-400 dark:text-slate-500'
                     }`}
-                    title={isBookmarked ? 'Remove Bookmark' : 'Add Bookmark'}
                   >
-                    <Bookmark className={`w-3 h-3 ${isBookmarked ? 'fill-current' : ''}`} />
-                    <span>{isBookmarked ? 'Bookmarked' : 'Bookmark'}</span>
-                  </button>
+                    {verse.number}
+                  </sup>
+                )}
 
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      speechService.speak(verse.textZh, 'zh', 0.9);
-                    }}
-                    className="flex items-center gap-1 text-[11px] font-sans font-medium px-2 py-0.5 rounded-md cursor-pointer transition-colors opacity-40 hover:opacity-100 hover:bg-slate-200/60 dark:hover:bg-slate-800"
-                    title="Play Chinese Audio (中文朗读)"
-                  >
-                    <Volume2 className="w-3 h-3 text-slate-700 dark:text-slate-300" />
-                    <span>朗读</span>
-                  </button>
+                {isTopChinese ? (
+                  <PinyinVerseText
+                    text={topText}
+                    pinyinMode={pinyinMode}
+                    pinyinSize={pinyinSize}
+                    colorTones={colorTones}
+                    theme={theme}
+                    redLetter={redLetter}
+                    showFootnotes={showFootnotes}
+                    onCharClick={onCharClick}
+                  />
+                ) : (
+                  <RedLetterText
+                    text={topText}
+                    enabled={redLetter}
+                    className={`${proseFontClass} leading-relaxed`}
+                  />
+                )}
 
-                  {hasNote && (
+                {showFootnotes && hasNote && (
+                  <span className="inline-flex align-middle ml-1.5">
                     <InlineNoteTooltip
                       note={userNotes[verseKey]}
                       badgeLabel="Study Note"
@@ -193,43 +228,24 @@ export const InterlinearReaderView: React.FC<InterlinearReaderViewProps> = ({
                       theme={theme}
                       onCharClick={onCharClick}
                     />
-                  )}
-                </div>
-              </div>
+                  </span>
+                )}
 
-              {/* Top Row (English first if bilingual) */}
-              <div
-                className="py-1 transition-all"
-                style={{
-                  fontSize: `${fontSize}px`,
-                  lineHeight: isTopChinese && pinyinMode === 'below' ? 2.3 : 1.75,
-                }}
-              >
-                {isTopChinese ? (
-                  <PinyinVerseText
-                    text={topText}
-                    pinyinMode={pinyinMode}
-                    pinyinSize={pinyinSize}
-                    colorTones={colorTones}
-                    theme={theme}
-                    redLetter={redLetter}
-                    onCharClick={onCharClick}
-                  />
-                ) : (
-                  <RedLetterText
-                    text={topText}
-                    enabled={redLetter}
-                    className="font-sans leading-relaxed"
+                {isBookmarked && !isDimmed && (
+                  <span
+                    className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 align-super ml-1"
+                    title="Bookmarked verse"
                   />
                 )}
               </div>
 
-              {/* Bottom Row (Chinese below) */}
+              {/* Bottom Row (Chinese + Centered Hanyu Pinyin) */}
               <div
-                className="pt-2 mt-2 border-t border-slate-200/80 dark:border-slate-800/80 opacity-90 transition-all"
+                data-verse-lang={isBottomChinese ? 'zh' : 'en'}
+                className="mt-1.5 opacity-90 transition-all select-text cursor-text"
                 style={{
                   fontSize: `${Math.max(fontSize - 1, 14)}px`,
-                  lineHeight: isBottomChinese && pinyinMode === 'below' ? 2.3 : 1.7,
+                  lineHeight: isBottomChinese && pinyinMode === 'below' ? 2.25 : 1.7,
                 }}
               >
                 {isBottomChinese ? (
@@ -240,13 +256,14 @@ export const InterlinearReaderView: React.FC<InterlinearReaderViewProps> = ({
                     colorTones={colorTones}
                     theme={theme}
                     redLetter={redLetter}
+                    showFootnotes={showFootnotes}
                     onCharClick={onCharClick}
                   />
                 ) : (
                   <RedLetterText
                     text={bottomText}
                     enabled={redLetter}
-                    className="font-sans leading-relaxed opacity-85"
+                    className={`${proseFontClass} leading-relaxed opacity-85`}
                   />
                 )}
               </div>

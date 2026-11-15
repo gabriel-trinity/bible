@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Search, X, Check, Globe } from 'lucide-react';
+import { Volume2, Check } from 'lucide-react';
 import { TranslationId, AppTheme } from '../types/bible';
 import { TRANSLATIONS } from '../data/bibleBooks';
 
@@ -12,31 +12,36 @@ interface VersionPickerModalProps {
   onSelectVersion: (transId: TranslationId) => void;
 }
 
+const LANGUAGE_LABELS: Record<'all' | 'en' | 'zh', string> = {
+  all: 'All Languages',
+  en: 'English',
+  zh: 'Chinese (中文)',
+};
+
 export const VersionPickerModal: React.FC<VersionPickerModalProps> = ({
   isOpen,
   onClose,
   currentPrimaryTrans,
   currentParallelTrans,
-  theme,
   onSelectVersion,
 }) => {
   const [filterQuery, setFilterQuery] = useState('');
   const [selectedLanguage, setSelectedLanguage] = useState<'all' | 'en' | 'zh'>('all');
+  const [showLanguageOptions, setShowLanguageOptions] = useState(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (isOpen) {
       setFilterQuery('');
       setSelectedLanguage('all');
+      setShowLanguageOptions(false);
       setTimeout(() => {
         searchInputRef.current?.focus();
       }, 100);
     }
   }, [isOpen]);
 
-  const allVersions = useMemo(() => {
-    return Object.values(TRANSLATIONS);
-  }, []);
+  const allVersions = useMemo(() => Object.values(TRANSLATIONS), []);
 
   const filteredVersions = useMemo(() => {
     let list = allVersions;
@@ -66,127 +71,116 @@ export const VersionPickerModal: React.FC<VersionPickerModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in font-sans"
+      className="fixed inset-0 z-50 flex items-start justify-center pt-14 sm:pt-20 px-3 sm:px-4 bg-black/45 backdrop-blur-xs animate-in fade-in font-sans"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md max-h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden border transition-all bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100"
+        className="w-full max-w-md max-h-[80vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-all"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header matching Image 2 */}
-        <div className="flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-slate-200 dark:border-slate-800">
-          <div className="flex items-center gap-2">
-            <Globe className="w-4 h-4 text-slate-500" />
-            <h2 className="text-base sm:text-lg font-bold tracking-tight">Version</h2>
-          </div>
+        {/* Top Bar matching Image 4: Centered "Version", Right "CANCEL" */}
+        <div className="relative flex items-center justify-center px-4 pt-4 pb-2.5 shrink-0">
+          <h2 className="text-base font-medium text-slate-500 dark:text-slate-400">
+            Version
+          </h2>
           <button
+            type="button"
             onClick={onClose}
-            className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 transition-colors cursor-pointer"
-            aria-label="Close"
+            className="absolute right-4 top-3.5 px-2 py-1 text-xs font-medium tracking-wide text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 uppercase transition-colors cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            CANCEL
           </button>
         </div>
 
-        {/* Search Input matching Image 2 ("Filter Versions...") */}
-        <div className="p-3.5 sm:p-4 border-b border-slate-100 dark:border-slate-800/80">
-          <div className="relative">
-            <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/60 focus-within:ring-2 focus-within:ring-slate-900 dark:focus-within:ring-slate-100 focus-within:bg-white dark:focus-within:bg-slate-800 transition-all">
-              <Search className="w-4 h-4 text-slate-400 shrink-0" />
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={filterQuery}
-                onChange={(e) => setFilterQuery(e.target.value)}
-                placeholder="Filter Versions..."
-                className="w-full text-sm bg-transparent border-none outline-hidden text-slate-900 dark:text-slate-100 placeholder:text-slate-400 font-sans"
-              />
-              {filterQuery && (
-                <button
-                  onClick={() => setFilterQuery('')}
-                  className="p-0.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 transition-colors"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Bible Language Section matching Image 2 */}
-          <div className="mt-3">
-            <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
-              Bible Language
-            </div>
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => setSelectedLanguage('all')}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  selectedLanguage === 'all'
-                    ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-2xs'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-                }`}
-              >
-                All Languages
-              </button>
-              <button
-                onClick={() => setSelectedLanguage('en')}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  selectedLanguage === 'en'
-                    ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-2xs'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-                }`}
-              >
-                English
-              </button>
-              <button
-                onClick={() => setSelectedLanguage('zh')}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  selectedLanguage === 'zh'
-                    ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-2xs'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-                }`}
-              >
-                Chinese
-              </button>
-            </div>
-          </div>
+        {/* Filter Input matching Image 4 ("Filter Versions...") */}
+        <div className="px-4 pb-3 shrink-0">
+          <input
+            ref={searchInputRef}
+            type="text"
+            value={filterQuery}
+            onChange={(e) => setFilterQuery(e.target.value)}
+            placeholder="Filter Versions..."
+            className="w-full px-3 py-2 text-sm rounded-lg border-2 border-slate-900 dark:border-slate-200 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 outline-hidden"
+          />
         </div>
 
-        {/* Versions List */}
-        <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/80">
+        {/* Bible Language Row matching Image 4 */}
+        <div className="px-4 pb-3 border-b border-slate-200/80 dark:border-slate-800 shrink-0">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <div className="text-xs text-slate-500 dark:text-slate-400">
+                Bible Language
+              </div>
+              <div className="text-sm font-medium text-slate-900 dark:text-slate-100 mt-0.5">
+                {LANGUAGE_LABELS[selectedLanguage]}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowLanguageOptions((prev) => !prev)}
+              className="text-sm font-medium text-sky-600 dark:text-sky-400 hover:underline transition-colors cursor-pointer whitespace-nowrap shrink-0"
+            >
+              Change Language
+            </button>
+          </div>
+
+          {showLanguageOptions && (
+            <div className="flex items-center gap-1.5 mt-3">
+              {(['all', 'en', 'zh'] as const).map((langKey) => (
+                <button
+                  key={langKey}
+                  type="button"
+                  onClick={() => {
+                    setSelectedLanguage(langKey);
+                    setShowLanguageOptions(false);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                    selectedLanguage === langKey
+                      ? 'bg-black text-white dark:bg-white dark:text-black'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  {langKey === 'all' ? 'All' : langKey === 'en' ? 'English' : 'Chinese'}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Versions List matching Image 4 */}
+        <div className="flex-1 overflow-y-auto py-1">
           {filteredVersions.map((version) => {
             const isCurrent =
               version.id === currentPrimaryTrans || version.id === currentParallelTrans;
+            const cleanName = version.name.replace(/\s*[\(（][^\)）]*[\)）]/g, '');
 
             return (
               <button
                 key={version.id}
+                type="button"
                 onClick={() => handleSelect(version.id)}
-                className={`w-full flex items-center justify-between p-3.5 sm:px-4 sm:py-3.5 text-left transition-colors cursor-pointer group ${
+                className={`w-full flex items-center justify-between px-4 py-3.5 text-left transition-colors cursor-pointer ${
                   isCurrent
-                    ? 'bg-slate-50 dark:bg-slate-800/60 font-semibold'
-                    : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/40'
+                    ? 'bg-slate-100/80 dark:bg-slate-800/70 font-semibold'
+                    : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
                 }`}
               >
-                <div className="flex-1 pr-3 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
-                      {version.name.replace(/\s*[\(（][^\)）]*[\)）]/g, '')}
-                    </span>
-                    <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold tracking-wider bg-slate-200/80 dark:bg-slate-700 text-slate-800 dark:text-slate-200 uppercase shrink-0">
-                      {version.id}
+                <div className="min-w-0 pr-3">
+                  <div className="text-[15px] text-slate-900 dark:text-slate-100 leading-snug">
+                    {cleanName}{' '}
+                    <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 ml-1">
+                      {version.shortName}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
-                    {version.description.replace(/\s*[\(（][^\)）]*[\)）]/g, '')}
-                  </p>
                 </div>
 
-                {isCurrent && (
-                  <div className="w-6 h-6 rounded-full bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 flex items-center justify-center shrink-0 shadow-2xs">
-                    <Check className="w-3.5 h-3.5 stroke-[3]" />
-                  </div>
-                )}
+                <div className="flex items-center gap-2.5 shrink-0 text-slate-700 dark:text-slate-300">
+                  <Volume2 className="w-4 h-4 opacity-70" />
+                  {isCurrent && (
+                    <Check className="w-4 h-4 text-slate-900 dark:text-slate-100 stroke-[2.5]" />
+                  )}
+                </div>
               </button>
             );
           })}

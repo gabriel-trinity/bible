@@ -10,6 +10,7 @@ import passageHandler from './api/passage.js';
 import searchHandler from './api/search.js';
 import dataHandler from './api/data.js';
 import indexHandler from './api/index.js';
+import votdHandler from './api/votd.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -28,6 +29,7 @@ async function startServer() {
   app.all('/api/passage', (req: Request, res: Response) => passageHandler(req, res));
   app.all('/api/search', (req: Request, res: Response) => searchHandler(req, res));
   app.all('/api/data', (req: Request, res: Response) => dataHandler(req, res));
+  app.all('/api/votd', (req: Request, res: Response) => votdHandler(req, res));
   app.all('/api', (req: Request, res: Response) => indexHandler(req, res));
 
   // Prevent stale mobile browser caching of Bible JSON data

@@ -20,11 +20,14 @@ import { CustomPassageModal } from './components/CustomPassageModal';
 import { ChapterNavFooter } from './components/ChapterNavFooter';
 import { NoteModal } from './components/NoteModal';
 import { VersionPickerModal } from './components/VersionPickerModal';
+import { VerseOfTheDayView } from './components/VerseOfTheDayView';
+import { BottomTabBar, AppTab } from './components/BottomTabBar';
 import { X } from 'lucide-react';
 
 import { BIBLE_BOOKS, getBookById, TRANSLATIONS } from './data/bibleBooks';
 import { fetchChapter } from './services/bibleService';
 import { speechService } from './services/speechService';
+import { fetchVerseOfTheDay } from './services/votdService';
 import {
   ChapterContent,
   VerseItem,
@@ -35,10 +38,15 @@ import {
   AppTheme,
   HighlightColor,
   UserBookmark,
+  VotdData,
+  VerseSelectionInfo,
+  VerseSnippet,
+  ReaderFont,
 } from './types/bible';
 import { getVerseTextForTranslation } from './data/curatedChapters';
 
 const STORAGE_KEY_BOOKMARKS = 'pinyin_bible_bookmarks_v2';
+const STORAGE_KEY_SNIPPETS = 'pinyin_bible_snippets_v1';
 const STORAGE_KEY_HIGHLIGHTS = 'pinyin_bible_highlights_v2';
 const STORAGE_KEY_NOTES = 'pinyin_bible_notes_v2';
 const STORAGE_KEY_PREFS = 'pinyin_bible_prefs_v2';
@@ -115,11 +123,16 @@ export default function App() {
   const [pinyinSize, setPinyinSize] = useState<PinyinSize>('base');
   const [colorTones, setColorTones] = useState<boolean>(false);
   const [fontSize, setFontSize] = useState<number>(16);
+  const [readerFont, setReaderFont] = useState<ReaderFont>('serif');
+  const [showFootnotes, setShowFootnotes] = useState<boolean>(true);
+  const [showNumbersAndTitles, setShowNumbersAndTitles] = useState<boolean>(true);
   const [theme, setTheme] = useState<AppTheme>('light');
   const [redLetter, setRedLetter] = useState<boolean>(true);
 
   // Interactive Selections
   const [activeVerse, setActiveVerse] = useState<VerseItem | null>(null);
+  const [verseSelection, setVerseSelection] = useState<VerseSelectionInfo | null>(null);
+  const [cardSnippetText, setCardSnippetText] = useState<string | undefined>(undefined);
   const [inspectingChar, setInspectingChar] = useState<{ char: string; pinyin: string; tone: number } | null>(null);
   const [editingNoteVerse, setEditingNoteVerse] = useState<VerseItem | null>(null);
 
@@ -132,10 +145,26 @@ export default function App() {
   const [isCustomPassageOpen, setIsCustomPassageOpen] = useState(false);
   const [isCardModalOpen, setIsCardModalOpen] = useState(false);
 
+  // Primary Bottom Navigation Tab ('bible' vs 'votd')
+  const [activeTab, setActiveTab] = useState<AppTab>('bible');
+
+  // Bible.com Verse of the Day State
+  const [votdData, setVotdData] = useState<VotdData | null>(null);
+  const [isLoadingVotd, setIsLoadingVotd] = useState<boolean>(true);
+
   // User Stored Data
   const [bookmarks, setBookmarks] = useState<UserBookmark[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_BOOKMARKS);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [snippets, setSnippets] = useState<VerseSnippet[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_SNIPPETS);
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
@@ -161,11 +190,14 @@ export default function App() {
   });
 
   // Audio Playback
+  const [isAudioPlayerOpen, setIsAudioPlayerOpen] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [audioVerseIndex, setAudioVerseIndex] = useState<number>(0);
-  const [speechRate, setSpeechRate] = useState<number>(0.9);
-  const [autoAdvanceAudio, setAutoAdvanceAudio] = useState<boolean>(true);
-  const [audioLanguage, setAudioLanguage] = useState<'zh' | 'en' | 'bilingual'>('zh');
+  const [verseElapsedSec, setVerseElapsedSec] = useState<number>(0);
+  const [speechRate, setSpeechRate] = useState<number>(1);
+  const [autoAdvanceAudio] = useState<boolean>(true);
+  const [focusAudioVerse, setFocusAudioVerse] = useState<boolean>(true);
+  const [audioLanguage, setAudioLanguage] = useState<'zh' | 'en' | 'bilingual'>('en');
 
   // Subtle chapter reading progress at top of viewport
   const [readProgress, setReadProgress] = useState<number>(0);
@@ -281,6 +313,33 @@ export default function App() {
     }
   }, [resumeToast]);
 
+  // Fetch Bible.com Verse of the Day on load
+  const loadVotd = useCallback((forceRefresh = false) => {
+    setIsLoadingVotd(true);
+    fetchVerseOfTheDay(forceRefresh)
+      .then((data) => {
+        setVotdData(data);
+      })
+      .finally(() => {
+        setIsLoadingVotd(false);
+      });
+  }, []);
+
+  useEffect(() => {
+    loadVotd(false);
+  }, [loadVotd]);
+
+  const handleChangeTab = useCallback((tab: AppTab) => {
+    setActiveTab(tab);
+    speechService.stop();
+    setIsPlayingAudio(false);
+    if (tab === 'votd') {
+      setActiveVerse(null);
+      setVerseSelection(null);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, []);
+
   // Load User Preferences from localStorage
   useEffect(() => {
     try {
@@ -298,6 +357,9 @@ export default function App() {
         if (p.colorTones !== undefined) setColorTones(p.colorTones);
         if (p.fontSize) setFontSize(p.fontSize);
         else setFontSize(16);
+        if (p.readerFont) setReaderFont(p.readerFont);
+        if (p.showFootnotes !== undefined) setShowFootnotes(p.showFootnotes);
+        if (p.showNumbersAndTitles !== undefined) setShowNumbersAndTitles(p.showNumbersAndTitles);
         if (p.theme) setTheme(p.theme);
         if (p.redLetter !== undefined) setRedLetter(p.redLetter);
         if (p.primaryTrans) setPrimaryTrans(p.primaryTrans);
@@ -323,6 +385,9 @@ export default function App() {
           pinyinSize,
           colorTones,
           fontSize,
+          readerFont,
+          showFootnotes,
+          showNumbersAndTitles,
           theme,
           redLetter,
           primaryTrans,
@@ -333,7 +398,21 @@ export default function App() {
     } catch {
       // Ignore
     }
-  }, [readingMode, pinyinMode, pinyinSize, colorTones, fontSize, theme, redLetter, primaryTrans, parallelTrans, audioLanguage]);
+  }, [
+    readingMode,
+    pinyinMode,
+    pinyinSize,
+    colorTones,
+    fontSize,
+    readerFont,
+    showFootnotes,
+    showNumbersAndTitles,
+    theme,
+    redLetter,
+    primaryTrans,
+    parallelTrans,
+    audioLanguage,
+  ]);
 
   // Persist Bookmarks
   useEffect(() => {
@@ -343,6 +422,15 @@ export default function App() {
       // Ignore
     }
   }, [bookmarks]);
+
+  // Persist Snippets
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_SNIPPETS, JSON.stringify(snippets));
+    } catch {
+      // Ignore
+    }
+  }, [snippets]);
 
   // Persist Highlights
   useEffect(() => {
@@ -393,6 +481,7 @@ export default function App() {
     let isCancelled = false;
     setIsLoadingChapter(true);
     setActiveVerse(null);
+    setVerseSelection(null);
     speechService.stop();
     setIsPlayingAudio(false);
 
@@ -424,17 +513,63 @@ export default function App() {
     return new Set(bookmarks.map((b) => b.verseKey));
   }, [bookmarks]);
 
-  // Handle Select Verse: highlight and immediately save reading position on this device
+  // Handle Select Verse (from tap, drag selection, or long-press): update active toolbar & save reading position
   const handleSelectVerse = useCallback(
-    (verse: VerseItem) => {
+    (verse: VerseItem, selection?: VerseSelectionInfo) => {
       setActiveVerse(verse);
+      setVerseSelection(selection || null);
       saveDeviceReadingPosition(verse.number);
     },
     [saveDeviceReadingPosition]
   );
 
+  // Save a text snippet excerpt to Snippets library
+  const handleSaveSnippet = useCallback(
+    (snippetText: string) => {
+      if (!activeVerse) return;
+      const trimmed = snippetText.trim();
+      if (!trimmed) return;
+      const verseKey = `${currentBookId}.${currentChapter}.${activeVerse.number}`;
+      const snippetLang =
+        verseSelection?.lang || (/[\u4e00-\u9fff]/.test(trimmed) ? 'zh' : 'en');
+      const translation: TranslationId =
+        snippetLang === 'zh'
+          ? 'CNVS'
+          : primaryTrans === 'CNVS'
+          ? parallelTrans
+          : primaryTrans;
+
+      setSnippets((prev) => {
+        const filtered = prev.filter(
+          (s) => !(s.verseKey === verseKey && s.text.trim() === trimmed)
+        );
+        const newSnippet: VerseSnippet = {
+          id: `${Date.now()}_${verseKey}`,
+          verseKey,
+          bookId: currentBookId,
+          chapter: currentChapter,
+          verseNumber: activeVerse.number,
+          text: trimmed,
+          translation,
+          createdAt: Date.now(),
+        };
+        return [newSnippet, ...filtered];
+      });
+    },
+    [activeVerse, currentBookId, currentChapter, primaryTrans, parallelTrans, verseSelection]
+  );
+
+  const handleCloseVerseToolbar = useCallback(() => {
+    setActiveVerse(null);
+    setVerseSelection(null);
+    if (typeof window !== 'undefined') {
+      window.getSelection()?.removeAllRanges();
+    }
+  }, []);
+
   // Handle Book, Chapter, and Verse Jump
   const handleSelectBookChapter = (bookId: string, chapter: number, verseNumber?: number) => {
+    setActiveTab('bible');
     if (currentBookId === bookId && currentChapter === chapter) {
       if (verseNumber && chapterData) {
         const found = chapterData.verses.find((v) => v.number === verseNumber);
@@ -447,6 +582,10 @@ export default function App() {
       return;
     }
 
+    speechService.stop();
+    setIsPlayingAudio(false);
+    setAudioVerseIndex(0);
+    setVerseElapsedSec(0);
     setCurrentBookId(bookId);
     setCurrentChapter(chapter);
     if (verseNumber && verseNumber > 1) {
@@ -473,6 +612,10 @@ export default function App() {
   const handlePrevChapter = () => {
     if (currentChapter > 1) {
       const prevCh = currentChapter - 1;
+      speechService.stop();
+      setIsPlayingAudio(false);
+      setAudioVerseIndex(0);
+      setVerseElapsedSec(0);
       setCurrentChapter(prevCh);
       setTargetVerseNumber(null);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -483,6 +626,10 @@ export default function App() {
   const handleNextChapter = () => {
     if (currentChapter < currentBook.chaptersCount) {
       const nextCh = currentChapter + 1;
+      speechService.stop();
+      setIsPlayingAudio(false);
+      setAudioVerseIndex(0);
+      setVerseElapsedSec(0);
       setCurrentChapter(nextCh);
       setTargetVerseNumber(null);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -526,6 +673,36 @@ export default function App() {
       }
     });
   }, [activeVerse, currentBookId, currentChapter, primaryTrans, parallelTrans]);
+
+  // Toggle Bookmark for arbitrary book/chapter/verse (e.g. Verse of the Day)
+  const handleToggleBookmarkByRef = useCallback(
+    (bookId: string, chapter: number, verse: VerseItem) => {
+      const verseKey = `${bookId}.${chapter}.${verse.number}`;
+      setBookmarks((prev) => {
+        const exists = prev.find((b) => b.verseKey === verseKey);
+        if (exists) {
+          return prev.filter((b) => b.verseKey !== verseKey);
+        }
+        const textZh = getVerseTextForTranslation(verse, 'CNVS');
+        const textEn = getVerseTextForTranslation(verse, 'NIV');
+        const newBookmark: UserBookmark = {
+          id: `${Date.now()}_${verseKey}`,
+          verseKey,
+          bookId,
+          chapter,
+          verseNumber: verse.number,
+          textZh,
+          textEn,
+          translation1: primaryTrans,
+          translation2: parallelTrans,
+          categoryTag: 'Verse of the Day',
+          createdAt: Date.now(),
+        };
+        return [newBookmark, ...prev];
+      });
+    },
+    [primaryTrans, parallelTrans]
+  );
 
   // Toggle Bookmark directly from verse badge
   const handleToggleBookmarkForVerse = useCallback((verse: VerseItem) => {
@@ -583,40 +760,108 @@ export default function App() {
     [activeVerse, currentBookId, currentChapter]
   );
 
+  // Audio timeline duration estimation per verse
+  const audioTimeline = useMemo(() => {
+    const verses = chapterData?.verses || [];
+    const safeRate = Math.max(0.5, speechRate);
+    const durations: number[] = [];
+    const startTimes: number[] = [];
+    let total = 0;
+
+    for (const v of verses) {
+      startTimes.push(total);
+      const zhLen = (v.textZh || '').replace(/<[^>]+>/g, '').length;
+      const enText = getVerseTextForTranslation(v, primaryTrans === 'CNVS' ? 'NIV' : primaryTrans);
+      const enLen = (enText || v.textEn || '').replace(/<[^>]+>/g, '').length;
+
+      let dur = 4;
+      if (audioLanguage === 'zh') {
+        dur = Math.max(2.5, zhLen / (4.4 * safeRate));
+      } else if (audioLanguage === 'en') {
+        dur = Math.max(2.5, enLen / (14.5 * safeRate));
+      } else {
+        dur = Math.max(4, zhLen / (4.4 * safeRate) + enLen / (14.5 * safeRate) + 0.35);
+      }
+      durations.push(dur);
+      total += dur;
+    }
+
+    return {
+      durations,
+      startTimes,
+      totalDurationSec: Math.max(1, total),
+    };
+  }, [chapterData, audioLanguage, speechRate, primaryTrans]);
+
+  // Smooth elapsed progress ticker while playing audio
+  useEffect(() => {
+    if (!isPlayingAudio) return;
+    const verseDur = audioTimeline.durations[audioVerseIndex] || 5;
+    const timer = setInterval(() => {
+      setVerseElapsedSec((prev) => Math.min(verseDur, prev + 0.25));
+    }, 250);
+    return () => clearInterval(timer);
+  }, [isPlayingAudio, audioVerseIndex, audioTimeline.durations]);
+
+  // Smooth auto-scroll to active verse during read-along audio playback
+  useEffect(() => {
+    if (!isAudioPlayerOpen || !focusAudioVerse || !isPlayingAudio || !chapterData) return;
+    const verseNum = chapterData.verses[audioVerseIndex]?.number;
+    if (!verseNum) return;
+    const el = document.getElementById(`verse-${verseNum}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [audioVerseIndex, isAudioPlayerOpen, focusAudioVerse, isPlayingAudio, chapterData]);
+
   // Audio Playback handler
   const playVerseAtIndex = useCallback(
-    (index: number, langOverride?: 'zh' | 'en' | 'bilingual') => {
+    (
+      index: number,
+      langOverride?: 'zh' | 'en' | 'bilingual',
+      rateOverride?: number
+    ) => {
       if (!chapterData || !chapterData.verses[index]) {
         setIsPlayingAudio(false);
         return;
       }
 
       setAudioVerseIndex(index);
+      setVerseElapsedSec(0);
       const targetVerse = chapterData.verses[index];
       const lang = langOverride || audioLanguage;
+      const rate = rateOverride ?? speechRate;
+      const enTrans = primaryTrans === 'CNVS' ? 'NIV' : primaryTrans;
 
       const onVerseFinished = () => {
         if (autoAdvanceAudio && index + 1 < chapterData.verses.length) {
-          playVerseAtIndex(index + 1, lang);
+          playVerseAtIndex(index + 1, lang, rate);
         } else {
           setIsPlayingAudio(false);
         }
       };
 
       if (lang === 'zh') {
-        speechService.speak(targetVerse.textZh, 'zh', speechRate, onVerseFinished);
+        speechService.speak(targetVerse.textZh, 'zh', rate, onVerseFinished);
       } else if (lang === 'en') {
-        const textEn = targetVerse.textEn || getVerseTextForTranslation(targetVerse, 'NIV');
-        speechService.speak(textEn, 'en', speechRate, onVerseFinished);
+        const textEn = targetVerse.textEn || getVerseTextForTranslation(targetVerse, enTrans);
+        speechService.speak(textEn, 'en', rate, onVerseFinished);
       } else {
-        const textEn = targetVerse.textEn || getVerseTextForTranslation(targetVerse, 'NIV');
-        speechService.speakBilingual(targetVerse.textZh, textEn, speechRate, onVerseFinished);
+        const textEn = targetVerse.textEn || getVerseTextForTranslation(targetVerse, enTrans);
+        speechService.speakBilingual(targetVerse.textZh, textEn, rate, onVerseFinished);
       }
     },
-    [chapterData, audioLanguage, speechRate, autoAdvanceAudio]
+    [chapterData, audioLanguage, speechRate, autoAdvanceAudio, primaryTrans]
   );
 
   const handleToggleAudio = () => {
+    if (!isAudioPlayerOpen) {
+      setIsAudioPlayerOpen(true);
+      setIsPlayingAudio(true);
+      playVerseAtIndex(audioVerseIndex);
+      return;
+    }
+
     if (isPlayingAudio) {
       speechService.stop();
       setIsPlayingAudio(false);
@@ -634,21 +879,45 @@ export default function App() {
     }
   };
 
-  const handleAudioPrevVerse = () => {
-    if (audioVerseIndex > 0) {
-      playVerseAtIndex(audioVerseIndex - 1);
+  const handleChangeSpeechRate = (rate: number) => {
+    setSpeechRate(rate);
+    if (isPlayingAudio) {
+      speechService.stop();
+      playVerseAtIndex(audioVerseIndex, audioLanguage, rate);
     }
   };
 
-  const handleAudioNextVerse = () => {
-    if (chapterData && audioVerseIndex < chapterData.verses.length - 1) {
-      playVerseAtIndex(audioVerseIndex + 1);
+  const handleSeekAudioSeconds = (targetSec: number) => {
+    if (!chapterData || chapterData.verses.length === 0) return;
+    const clamped = Math.max(0, Math.min(targetSec, audioTimeline.totalDurationSec - 0.1));
+    let targetIdx = 0;
+    for (let i = 0; i < audioTimeline.startTimes.length; i++) {
+      if (audioTimeline.startTimes[i] <= clamped) {
+        targetIdx = i;
+      } else {
+        break;
+      }
+    }
+    const offsetInVerse = Math.max(0, clamped - (audioTimeline.startTimes[targetIdx] || 0));
+    setAudioVerseIndex(targetIdx);
+    setVerseElapsedSec(offsetInVerse);
+
+    if (isPlayingAudio) {
+      speechService.stop();
+      playVerseAtIndex(targetIdx);
     }
   };
 
-  const handleStopAudio = () => {
+  const handleSkipAudioSeconds = (deltaSec: number) => {
+    const currentTotal =
+      (audioTimeline.startTimes[audioVerseIndex] || 0) + verseElapsedSec;
+    handleSeekAudioSeconds(currentTotal + deltaSec);
+  };
+
+  const handleCloseAudioBar = () => {
     speechService.stop();
     setIsPlayingAudio(false);
+    setIsAudioPlayerOpen(false);
   };
 
   // Cycle Pinyin Mode
@@ -671,22 +940,23 @@ export default function App() {
     : '';
 
   return (
-    <div className={`min-h-screen theme-${theme} ${theme === 'dark' ? 'dark' : ''} transition-colors flex flex-col font-sans bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100`}>
+    <div className={`min-h-screen theme-${theme} ${theme === 'dark' ? 'dark' : ''} transition-colors flex flex-col font-sans bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100`}>
       {/* Subtle Progress Bar at top of viewport visualizing read position within active chapter */}
       <div
-        className="fixed top-0 left-0 right-0 h-[2.5px] z-50 pointer-events-none bg-slate-200/40 dark:bg-slate-800/40"
+        className="fixed top-0 left-0 right-0 h-[2px] z-50 pointer-events-none bg-transparent"
         aria-hidden="true"
       >
         <div
-          className="h-full bg-[#C20009] dark:bg-[#e02e38] transition-[width] duration-100 ease-out shadow-xs"
+          className="h-full bg-[#C20009] dark:bg-[#e02e38] transition-[width] duration-100 ease-out"
           style={{ width: `${readProgress}%` }}
         />
       </div>
 
-      {/* Top Navbar */}
+      {/* Top Navbar matching Image 1 */}
       <BibleHeader
         currentBook={currentBook}
         currentChapter={currentChapter}
+        activeTab={activeTab}
         primaryTrans={primaryTrans}
         parallelTrans={parallelTrans}
         readingMode={readingMode}
@@ -694,8 +964,6 @@ export default function App() {
         theme={theme}
         bookmarkCount={bookmarks.length}
         isPlayingAudio={isPlayingAudio}
-        onPrevChapter={handlePrevChapter}
-        onNextChapter={handleNextChapter}
         onOpenBookPicker={() => setIsBookPickerOpen(true)}
         onOpenVersionPicker={() => setIsVersionPickerOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
@@ -709,15 +977,12 @@ export default function App() {
       />
 
       {/* Resume from last read on this device notification */}
-      {resumeToast && (
-        <div className="fixed top-14 sm:top-16 left-1/2 -translate-x-1/2 z-40 animate-in slide-in-from-top-3 fade-in duration-300 max-w-sm w-[92%] sm:w-auto font-sans pointer-events-auto">
-          <div className="flex items-center justify-between gap-2.5 px-3.5 py-2 rounded-2xl shadow-xl border backdrop-blur-md text-xs bg-white/95 dark:bg-slate-900/95 text-slate-800 dark:text-slate-100 border-slate-200 dark:border-slate-800">
-            <div className="flex items-center gap-2 truncate">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-              <span className="truncate">
-                Resumed on this device: <strong className="font-semibold">{resumeToast.bookNameEn} ({resumeToast.bookNameZh}) {resumeToast.chapter}:{resumeToast.verseNumber}</strong>
-              </span>
-            </div>
+      {resumeToast && activeTab === 'bible' && (
+        <div className="fixed top-26 sm:top-28 left-1/2 -translate-x-1/2 z-40 animate-in slide-in-from-top-3 fade-in duration-300 max-w-sm w-[92%] sm:w-auto font-sans pointer-events-auto">
+          <div className="flex items-center justify-between gap-2.5 px-3.5 py-2 rounded-2xl shadow-lg border backdrop-blur-md text-xs bg-white/95 dark:bg-slate-900/95 text-slate-800 dark:text-slate-100 border-slate-200 dark:border-slate-800">
+            <span className="truncate">
+              Resumed: <strong className="font-semibold">{resumeToast.bookNameEn} ({resumeToast.bookNameZh}) {resumeToast.chapter}:{resumeToast.verseNumber}</strong>
+            </span>
             <button
               onClick={() => setResumeToast(null)}
               className="p-1 rounded-md opacity-50 hover:opacity-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
@@ -729,113 +994,160 @@ export default function App() {
         </div>
       )}
 
-      {/* Main Chapter Content Container */}
-      <main className="flex-1 w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 pt-3 sm:pt-6 pb-20 sm:pb-8">
-        {/* Chapter Title matching Image 1 */}
-        <div className="text-center pt-2 sm:pt-4 pb-2 mb-4 font-sans">
-          <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-slate-900 dark:text-slate-100">
-            {currentBook.nameEn}
-          </h1>
-          <div className="w-10 h-1 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto mt-2.5" />
-        </div>
-
-        {/* Loading State or Reader View */}
-        {isLoadingChapter || !chapterData ? (
-          <div className="text-center py-24 space-y-3 font-sans">
-            <div className="w-8 h-8 border-3 border-slate-900 dark:border-slate-100 border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-sm opacity-70">
-              Loading scripture text with Hanyu Pinyin annotations...
-            </p>
-          </div>
+      {/* Main Content Container */}
+      <main className="flex-1 w-full max-w-5xl mx-auto px-3 sm:px-6 pt-5 sm:pt-8 pb-24 sm:pb-24">
+        {activeTab === 'votd' ? (
+          <VerseOfTheDayView
+            votdData={votdData}
+            isLoading={isLoadingVotd}
+            theme={theme}
+            primaryTrans={primaryTrans}
+            pinyinMode={pinyinMode}
+            pinyinSize={pinyinSize}
+            colorTones={colorTones}
+            redLetter={redLetter}
+            bookmarkedVerses={bookmarkedVerseKeys}
+            onRefresh={() => loadVotd(true)}
+            onJumpToVerse={handleSelectBookChapter}
+            onToggleBookmark={handleToggleBookmarkByRef}
+            onCharClick={(char, pinyin, tone) => setInspectingChar({ char, pinyin, tone })}
+          />
         ) : (
           <>
-            {readingMode === 'split' && (
-              <SplitReaderView
-                chapterData={chapterData}
-                primaryTrans={primaryTrans}
-                parallelTrans={parallelTrans}
-                pinyinMode={pinyinMode}
-                pinyinSize={pinyinSize}
-                colorTones={colorTones}
-                fontSize={fontSize}
-                theme={theme}
-                redLetter={redLetter}
-                activeVerseNumber={activeVerse?.number || null}
-                speakingVerseNumber={isPlayingAudio ? chapterData.verses[audioVerseIndex]?.number || null : null}
-                highlights={highlights}
-                bookmarkedVerses={bookmarkedVerseKeys}
-                userNotes={userNotes}
-                onSelectVerse={handleSelectVerse}
-                onCharClick={(char, pinyin, tone) => setInspectingChar({ char, pinyin, tone })}
-                onPrimaryTransChange={setPrimaryTrans}
-                onParallelTransChange={setParallelTrans}
-                onSwapTranslations={handleSwapTranslations}
-                onToggleBookmark={handleToggleBookmarkForVerse}
-              />
+            {/* Chapter Title matching Image 1 ("Genesis 1") */}
+            {showNumbersAndTitles && (
+              <div className="text-center pt-1 pb-4 mb-2">
+                <h1
+                  className={`text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 dark:text-slate-100 ${
+                    readerFont === 'serif' ? 'font-serif' : 'font-sans'
+                  }`}
+                >
+                  {currentBook.nameEn} {currentChapter}
+                </h1>
+              </div>
             )}
 
-            {readingMode === 'interlinear' && (
-              <InterlinearReaderView
-                chapterData={chapterData}
-                primaryTrans={primaryTrans}
-                parallelTrans={parallelTrans}
-                pinyinMode={pinyinMode}
-                pinyinSize={pinyinSize}
-                colorTones={colorTones}
-                fontSize={fontSize}
-                theme={theme}
-                redLetter={redLetter}
-                activeVerseNumber={activeVerse?.number || null}
-                speakingVerseNumber={isPlayingAudio ? chapterData.verses[audioVerseIndex]?.number || null : null}
-                highlights={highlights}
-                bookmarkedVerses={bookmarkedVerseKeys}
-                userNotes={userNotes}
-                onSelectVerse={handleSelectVerse}
-                onCharClick={(char, pinyin, tone) => setInspectingChar({ char, pinyin, tone })}
-                onToggleBookmark={handleToggleBookmarkForVerse}
-              />
+            {/* Loading State or Reader View */}
+            {isLoadingChapter || !chapterData ? (
+              <div className="text-center py-24 space-y-3 font-sans">
+                <div className="w-8 h-8 border-3 border-slate-900 dark:border-slate-100 border-t-transparent rounded-full animate-spin mx-auto" />
+                <p className="text-sm opacity-70">
+                  Loading scripture text with Hanyu Pinyin annotations...
+                </p>
+              </div>
+            ) : (
+              <>
+                {readingMode === 'split' && (
+                  <SplitReaderView
+                    chapterData={chapterData}
+                    primaryTrans={primaryTrans}
+                    parallelTrans={parallelTrans}
+                    pinyinMode={pinyinMode}
+                    pinyinSize={pinyinSize}
+                    colorTones={colorTones}
+                    fontSize={fontSize}
+                    readerFont={readerFont}
+                    showFootnotes={showFootnotes}
+                    showNumbersAndTitles={showNumbersAndTitles}
+                    theme={theme}
+                    redLetter={redLetter}
+                    activeVerseNumber={activeVerse?.number || null}
+                    speakingVerseNumber={
+                      isAudioPlayerOpen && focusAudioVerse
+                        ? chapterData.verses[audioVerseIndex]?.number || null
+                        : null
+                    }
+                    highlights={highlights}
+                    bookmarkedVerses={bookmarkedVerseKeys}
+                    userNotes={userNotes}
+                    onSelectVerse={handleSelectVerse}
+                    onCharClick={(char, pinyin, tone) => setInspectingChar({ char, pinyin, tone })}
+                    onPrimaryTransChange={setPrimaryTrans}
+                    onParallelTransChange={setParallelTrans}
+                    onSwapTranslations={handleSwapTranslations}
+                    onToggleBookmark={handleToggleBookmarkForVerse}
+                  />
+                )}
+
+                {readingMode === 'interlinear' && (
+                  <InterlinearReaderView
+                    chapterData={chapterData}
+                    primaryTrans={primaryTrans}
+                    parallelTrans={parallelTrans}
+                    pinyinMode={pinyinMode}
+                    pinyinSize={pinyinSize}
+                    colorTones={colorTones}
+                    fontSize={fontSize}
+                    readerFont={readerFont}
+                    showFootnotes={showFootnotes}
+                    showNumbersAndTitles={showNumbersAndTitles}
+                    theme={theme}
+                    redLetter={redLetter}
+                    activeVerseNumber={activeVerse?.number || null}
+                    speakingVerseNumber={
+                      isAudioPlayerOpen && focusAudioVerse
+                        ? chapterData.verses[audioVerseIndex]?.number || null
+                        : null
+                    }
+                    highlights={highlights}
+                    bookmarkedVerses={bookmarkedVerseKeys}
+                    userNotes={userNotes}
+                    onSelectVerse={handleSelectVerse}
+                    onCharClick={(char, pinyin, tone) => setInspectingChar({ char, pinyin, tone })}
+                    onToggleBookmark={handleToggleBookmarkForVerse}
+                  />
+                )}
+
+                {readingMode === 'single' && (
+                  <SingleReaderView
+                    chapterData={chapterData}
+                    primaryTrans={primaryTrans}
+                    pinyinMode={pinyinMode}
+                    pinyinSize={pinyinSize}
+                    colorTones={colorTones}
+                    fontSize={fontSize}
+                    readerFont={readerFont}
+                    showFootnotes={showFootnotes}
+                    showNumbersAndTitles={showNumbersAndTitles}
+                    theme={theme}
+                    redLetter={redLetter}
+                    activeVerseNumber={activeVerse?.number || null}
+                    speakingVerseNumber={
+                      isAudioPlayerOpen && focusAudioVerse
+                        ? chapterData.verses[audioVerseIndex]?.number || null
+                        : null
+                    }
+                    highlights={highlights}
+                    bookmarkedVerses={bookmarkedVerseKeys}
+                    userNotes={userNotes}
+                    onSelectVerse={handleSelectVerse}
+                    onCharClick={(char, pinyin, tone) => setInspectingChar({ char, pinyin, tone })}
+                    onToggleBookmark={handleToggleBookmarkForVerse}
+                  />
+                )}
+              </>
             )}
 
-            {readingMode === 'single' && (
-              <SingleReaderView
-                chapterData={chapterData}
-                primaryTrans={primaryTrans}
-                pinyinMode={pinyinMode}
-                pinyinSize={pinyinSize}
-                colorTones={colorTones}
-                fontSize={fontSize}
+            {/* Chapter Navigation Footer & Floating Side Chevrons */}
+            {!isLoadingChapter && (
+              <ChapterNavFooter
+                currentBook={currentBook}
+                currentChapter={currentChapter}
                 theme={theme}
-                redLetter={redLetter}
-                activeVerseNumber={activeVerse?.number || null}
-                speakingVerseNumber={isPlayingAudio ? chapterData.verses[audioVerseIndex]?.number || null : null}
-                highlights={highlights}
-                bookmarkedVerses={bookmarkedVerseKeys}
-                userNotes={userNotes}
-                onSelectVerse={handleSelectVerse}
-                onCharClick={(char, pinyin, tone) => setInspectingChar({ char, pinyin, tone })}
-                onToggleBookmark={handleToggleBookmarkForVerse}
+                isPlayingAudio={isPlayingAudio}
+                isAudioPlayerOpen={isAudioPlayerOpen}
+                onToggleAudio={handleToggleAudio}
+                onPrevChapter={handlePrevChapter}
+                onNextChapter={handleNextChapter}
+                onOpenBookPicker={() => setIsBookPickerOpen(true)}
               />
             )}
           </>
         )}
-
-        {/* Chapter Navigation Footer */}
-        {!isLoadingChapter && (
-          <ChapterNavFooter
-            currentBook={currentBook}
-            currentChapter={currentChapter}
-            theme={theme}
-            isPlayingAudio={isPlayingAudio}
-            onToggleAudio={handleToggleAudio}
-            onPrevChapter={handlePrevChapter}
-            onNextChapter={handleNextChapter}
-            onOpenBookPicker={() => setIsBookPickerOpen(true)}
-          />
-        )}
       </main>
 
       {/* Floating Verse Action Toolbar */}
-      {activeVerse && (
+      {activeTab === 'bible' && activeVerse && (
         <VerseActionToolbar
           verse={activeVerse}
           bookNameZh={currentBook.nameZh}
@@ -844,35 +1156,48 @@ export default function App() {
           isBookmarked={bookmarkedVerseKeys.has(activeVerseKey)}
           highlightColor={highlights[activeVerseKey]}
           theme={theme}
+          selectionInfo={verseSelection}
           onToggleBookmark={handleToggleBookmark}
           onSetHighlight={handleSetHighlight}
           onOpenNote={() => setEditingNoteVerse(activeVerse)}
-          onOpenCardModal={() => setIsCardModalOpen(true)}
-          onClose={() => setActiveVerse(null)}
+          onOpenCardModal={(snippetText) => {
+            setCardSnippetText(snippetText);
+            setIsCardModalOpen(true);
+          }}
+          onSaveSnippet={handleSaveSnippet}
+          onClearSelection={() => {
+            setVerseSelection(null);
+            if (typeof window !== 'undefined') {
+              window.getSelection()?.removeAllRanges();
+            }
+          }}
+          onClose={handleCloseVerseToolbar}
         />
       )}
 
-      {/* Floating Audio Bar */}
-      {isPlayingAudio && chapterData && (
+      {/* Docked Bottom Audio Listener Bar matching screenshot */}
+      {activeTab === 'bible' && isAudioPlayerOpen && chapterData && (
         <AudioPlayerBar
           isPlaying={isPlayingAudio}
           currentVerseNum={chapterData.verses[audioVerseIndex]?.number || 1}
           totalVerses={chapterData.verses.length}
+          currentTimeSec={(audioTimeline.startTimes[audioVerseIndex] || 0) + verseElapsedSec}
+          totalDurationSec={audioTimeline.totalDurationSec}
           speechRate={speechRate}
-          autoAdvance={autoAdvanceAudio}
+          focusAudioVerse={focusAudioVerse}
           audioLanguage={audioLanguage}
+          primaryTrans={primaryTrans}
           theme={theme}
           bookNameZh={currentBook.nameZh}
           bookNameEn={currentBook.nameEn}
           chapter={currentChapter}
           onPlayPause={handleToggleAudio}
-          onStop={handleStopAudio}
-          onPrevVerse={handleAudioPrevVerse}
-          onNextVerse={handleAudioNextVerse}
-          onChangeRate={setSpeechRate}
+          onSkipSeconds={handleSkipAudioSeconds}
+          onSeekSeconds={handleSeekAudioSeconds}
+          onChangeRate={handleChangeSpeechRate}
           onChangeLanguage={handleChangeAudioLanguage}
-          onToggleAutoAdvance={() => setAutoAdvanceAudio(!autoAdvanceAudio)}
-          onClose={handleStopAudio}
+          onToggleFocusVerse={() => setFocusAudioVerse((prev) => !prev)}
+          onClose={handleCloseAudioBar}
         />
       )}
 
@@ -915,6 +1240,12 @@ export default function App() {
         setColorTones={setColorTones}
         fontSize={fontSize}
         setFontSize={setFontSize}
+        readerFont={readerFont}
+        setReaderFont={setReaderFont}
+        showFootnotes={showFootnotes}
+        setShowFootnotes={setShowFootnotes}
+        showNumbersAndTitles={showNumbersAndTitles}
+        setShowNumbersAndTitles={setShowNumbersAndTitles}
         theme={theme}
         setTheme={setTheme}
         readingMode={readingMode}
@@ -938,11 +1269,13 @@ export default function App() {
         isOpen={isBookmarksOpen}
         theme={theme}
         bookmarks={bookmarks}
+        snippets={snippets}
         highlights={highlights}
         userNotes={userNotes}
         onClose={() => setIsBookmarksOpen(false)}
         onJumpToVerse={handleSelectBookChapter}
         onRemoveBookmark={(id) => setBookmarks((prev) => prev.filter((b) => b.id !== id))}
+        onRemoveSnippet={(id) => setSnippets((prev) => prev.filter((s) => s.id !== id))}
         onRemoveHighlight={(key) =>
           setHighlights((prev) => {
             const next = { ...prev };
@@ -985,12 +1318,16 @@ export default function App() {
       {/* Scripture Card Modal */}
       <VerseCardModal
         verse={activeVerse}
+        snippetText={cardSnippetText}
         bookNameZh={currentBook.nameZh}
         bookNameEn={currentBook.nameEn}
         chapter={currentChapter}
         isOpen={isCardModalOpen}
         theme={theme}
-        onClose={() => setIsCardModalOpen(false)}
+        onClose={() => {
+          setIsCardModalOpen(false);
+          setCardSnippetText(undefined);
+        }}
       />
 
       {/* Custom Passage Annotator Modal */}
@@ -1003,6 +1340,15 @@ export default function App() {
         onClose={() => setIsCustomPassageOpen(false)}
         onCharClick={(char, pinyin, tone) => setInspectingChar({ char, pinyin, tone })}
       />
+
+      {/* Fixed Bottom Navigation Menu separating Bible & Verse of the Day (hidden when docked AudioPlayerBar is active) */}
+      {!(activeTab === 'bible' && isAudioPlayerOpen) && (
+        <BottomTabBar
+          activeTab={activeTab}
+          theme={theme}
+          onChangeTab={handleChangeTab}
+        />
+      )}
     </div>
   );
 }

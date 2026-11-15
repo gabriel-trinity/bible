@@ -10,8 +10,10 @@ import {
   Tag,
   Copy,
   Check,
+  Scissors,
+  Share2,
 } from 'lucide-react';
-import { UserBookmark, HighlightColor, AppTheme } from '../types/bible';
+import { UserBookmark, HighlightColor, AppTheme, VerseSnippet } from '../types/bible';
 import { getBookById } from '../data/bibleBooks';
 import { stripVerseMarkup } from '../services/pinyinService';
 
@@ -19,11 +21,13 @@ interface BookmarksDrawerProps {
   isOpen: boolean;
   theme: AppTheme;
   bookmarks: UserBookmark[];
+  snippets: VerseSnippet[];
   highlights: Record<string, HighlightColor>;
   userNotes: Record<string, string>;
   onClose: () => void;
   onJumpToVerse: (bookId: string, chapter: number, verseNumber: number) => void;
   onRemoveBookmark: (id: string) => void;
+  onRemoveSnippet: (id: string) => void;
   onRemoveHighlight: (verseKey: string) => void;
   onRemoveNote: (verseKey: string) => void;
   onUpdateBookmarkTag?: (id: string, tag: string) => void;
@@ -35,20 +39,25 @@ export const BookmarksDrawer: React.FC<BookmarksDrawerProps> = ({
   isOpen,
   theme,
   bookmarks,
+  snippets,
   highlights,
   userNotes,
   onClose,
   onJumpToVerse,
   onRemoveBookmark,
+  onRemoveSnippet,
   onRemoveHighlight,
   onRemoveNote,
   onUpdateBookmarkTag,
 }) => {
-  const [activeTab, setActiveTab] = useState<'bookmarks' | 'highlights' | 'notes'>('bookmarks');
+  const [activeTab, setActiveTab] = useState<'bookmarks' | 'snippets' | 'highlights' | 'notes'>(
+    'bookmarks'
+  );
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState('All');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'canonical'>('newest');
   const [copiedAll, setCopiedAll] = useState(false);
+  const [copiedSnippetId, setCopiedSnippetId] = useState<string | null>(null);
 
   const filteredBookmarks = useMemo(() => {
     let result = [...bookmarks];
@@ -120,6 +129,38 @@ export const BookmarksDrawer: React.FC<BookmarksDrawerProps> = ({
     setTimeout(() => setCopiedAll(false), 2000);
   };
 
+  const formatSnippetShareText = (s: VerseSnippet) => {
+    const book = getBookById(s.bookId);
+    const refEn = `${book?.nameEn || s.bookId} ${s.chapter}:${s.verseNumber}`;
+    const refZh = `${book?.nameZh || s.bookId} ${s.chapter}:${s.verseNumber}`;
+    return `“${s.text}”\n— ${refEn} · ${refZh}`;
+  };
+
+  const handleCopySnippet = async (s: VerseSnippet) => {
+    try {
+      await navigator.clipboard.writeText(formatSnippetShareText(s));
+      setCopiedSnippetId(s.id);
+      setTimeout(() => setCopiedSnippetId(null), 1800);
+    } catch {
+      // Ignore clipboard failure
+    }
+  };
+
+  const handleShareSnippet = async (s: VerseSnippet) => {
+    const book = getBookById(s.bookId);
+    const title = `${book?.nameEn || s.bookId} ${s.chapter}:${s.verseNumber}`;
+    const text = formatSnippetShareText(s);
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ title, text });
+        return;
+      } catch (err: any) {
+        if (err?.name === 'AbortError') return;
+      }
+    }
+    await handleCopySnippet(s);
+  };
+
   return (
     <div
       className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-xs animate-in fade-in font-sans"
@@ -150,40 +191,52 @@ export const BookmarksDrawer: React.FC<BookmarksDrawerProps> = ({
         </div>
 
         {/* Tab Selection */}
-        <div className="flex border-b border-slate-200 dark:border-slate-800 text-xs font-semibold">
+        <div className="grid grid-cols-4 border-b border-slate-200 dark:border-slate-800 text-[11px] sm:text-xs font-semibold">
           <button
             onClick={() => setActiveTab('bookmarks')}
-            className={`flex-1 py-3 text-center border-b-2 transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            className={`py-3 text-center border-b-2 transition-all flex items-center justify-center gap-1 whitespace-nowrap cursor-pointer ${
               activeTab === 'bookmarks'
                 ? 'border-slate-900 dark:border-slate-100 text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-800/50'
                 : 'border-transparent opacity-60 hover:opacity-100'
             }`}
           >
-            <Bookmark className="w-3.5 h-3.5" />
-            <span>Bookmarks ({bookmarks.length})</span>
+            <Bookmark className="w-3.5 h-3.5 shrink-0" />
+            <span>Saved ({bookmarks.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('snippets')}
+            className={`py-3 text-center border-b-2 transition-all flex items-center justify-center gap-1 whitespace-nowrap cursor-pointer ${
+              activeTab === 'snippets'
+                ? 'border-slate-900 dark:border-slate-100 text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-800/50'
+                : 'border-transparent opacity-60 hover:opacity-100'
+            }`}
+          >
+            <Scissors className="w-3.5 h-3.5 shrink-0" />
+            <span>Snippets ({snippets.length})</span>
           </button>
 
           <button
             onClick={() => setActiveTab('highlights')}
-            className={`flex-1 py-3 text-center border-b-2 transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            className={`py-3 text-center border-b-2 transition-all flex items-center justify-center gap-1 whitespace-nowrap cursor-pointer ${
               activeTab === 'highlights'
                 ? 'border-slate-900 dark:border-slate-100 text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-800/50'
                 : 'border-transparent opacity-60 hover:opacity-100'
             }`}
           >
-            <Highlighter className="w-3.5 h-3.5" />
-            <span>Highlights ({highlightEntries.length})</span>
+            <Highlighter className="w-3.5 h-3.5 shrink-0" />
+            <span>Colors ({highlightEntries.length})</span>
           </button>
 
           <button
             onClick={() => setActiveTab('notes')}
-            className={`flex-1 py-3 text-center border-b-2 transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            className={`py-3 text-center border-b-2 transition-all flex items-center justify-center gap-1 whitespace-nowrap cursor-pointer ${
               activeTab === 'notes'
                 ? 'border-slate-900 dark:border-slate-100 text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-800/50'
                 : 'border-transparent opacity-60 hover:opacity-100'
             }`}
           >
-            <FileText className="w-3.5 h-3.5" />
+            <FileText className="w-3.5 h-3.5 shrink-0" />
             <span>Notes ({noteEntries.length})</span>
           </button>
         </div>
@@ -334,6 +387,88 @@ export const BookmarksDrawer: React.FC<BookmarksDrawerProps> = ({
                         </div>
 
                         <span>{new Date(b.createdAt).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </>
+          )}
+
+          {activeTab === 'snippets' && (
+            <>
+              {snippets.length === 0 ? (
+                <div className="text-center py-16 opacity-50 text-xs sm:text-sm">
+                  <Scissors className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                  <p>No saved verse snippets yet</p>
+                  <p className="text-[11px] mt-1">
+                    Long-press or drag to select text inside any verse to save a snippet
+                  </p>
+                </div>
+              ) : (
+                snippets.map((s) => {
+                  const book = getBookById(s.bookId);
+                  const refEn = `${book?.nameEn || s.bookId} ${s.chapter}:${s.verseNumber}`;
+                  const refZh = `${book?.nameZh || s.bookId} ${s.chapter}:${s.verseNumber}`;
+
+                  return (
+                    <div
+                      key={s.id}
+                      className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-all bg-white/70 dark:bg-slate-800/50 shadow-2xs"
+                    >
+                      <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 dark:border-slate-700/60 text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold">{refEn}</span>
+                          <span className="text-[10px] opacity-60">({refZh})</span>
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleCopySnippet(s)}
+                            className="p-1.5 rounded-md opacity-70 hover:opacity-100 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                            title="Copy snippet"
+                          >
+                            {copiedSnippetId === s.id ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-600" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                          <button
+                            onClick={() => handleShareSnippet(s)}
+                            className="p-1.5 rounded-md opacity-70 hover:opacity-100 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                            title="Share snippet"
+                          >
+                            <Share2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              onJumpToVerse(s.bookId, s.chapter, s.verseNumber);
+                              onClose();
+                            }}
+                            className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 text-[11px] font-semibold transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                            title="Jump to verse in reader"
+                          >
+                            <span>Read</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={() => onRemoveSnippet(s.id)}
+                            className="p-1 opacity-60 hover:opacity-100 hover:text-red-500 transition-colors cursor-pointer"
+                            title="Delete snippet"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <p className="mt-2.5 text-xs sm:text-sm leading-relaxed font-serif italic text-slate-800 dark:text-slate-100">
+                        “{s.text}”
+                      </p>
+
+                      <div className="mt-2 pt-1.5 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between text-[10px] opacity-60">
+                        <span>{s.translation || 'Excerpt'}</span>
+                        <span>{new Date(s.createdAt).toLocaleDateString()}</span>
                       </div>
                     </div>
                   );

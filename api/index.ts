@@ -58,6 +58,15 @@ export default async function handler(req: any, res: any) {
         },
         example: '/api/data?endpoint=data/web/JHN/1',
       },
+      {
+        path: '/api/votd',
+        method: 'GET',
+        description: 'Fetch daily Verse of the Day and recent verses from bible.com/verse-of-the-day',
+        parameters: {
+          refresh: 'Optional 1 to bypass short-term server cache',
+        },
+        example: '/api/votd',
+      },
     ],
   };
 
@@ -68,7 +77,7 @@ export default async function handler(req: any, res: any) {
 export async function GET() {
   return new Response(JSON.stringify({
     name: 'Bible Reader Serverless API',
-    endpoints: ['/api/health', '/api/bible', '/api/passage', '/api/search', '/api/data'],
+    endpoints: ['/api/health', '/api/bible', '/api/passage', '/api/search', '/api/data', '/api/votd'],
   }, null, 2), {
     headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
   });

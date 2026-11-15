@@ -308,11 +308,11 @@ export const InlineNoteTooltip: React.FC<InlineNoteTooltipProps> = ({
               <ruby
                 key={idx}
                 onClick={(e) => handleCharacterTap(e, t.char, t.pinyin, t.tone)}
-                className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 rounded px-[1px] transition-colors"
+                className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 rounded px-[1px] transition-colors text-center"
                 title={`${t.char} [${t.pinyin}]`}
               >
-                <span>{t.char}</span>
-                <rt className={`${subSizeClass} font-sans font-medium ${toneClass}`}>
+                <span className="block w-full text-center">{t.char}</span>
+                <rt className={`${subSizeClass} block w-full text-center whitespace-nowrap font-sans font-medium ${toneClass}`}>
                   {t.pinyin}
                 </rt>
               </ruby>
@@ -322,7 +322,7 @@ export const InlineNoteTooltip: React.FC<InlineNoteTooltipProps> = ({
       );
     }
 
-    // Default: Hanyu Pinyin directly below each Chinese character, with punctuation aligned to the Chinese row
+    // Default: Hanyu Pinyin centered directly below each Chinese character, with punctuation aligned to the Chinese row
     return (
       <span className="inline-flex flex-wrap items-start gap-y-1.5 font-sans">
         {tooltipSegments.map((seg, idx) => {
@@ -334,13 +334,13 @@ export const InlineNoteTooltip: React.FC<InlineNoteTooltipProps> = ({
             return (
               <span
                 key={idx}
-                className="inline-flex flex-col items-center justify-start p-[1px] select-text self-start"
+                className="inline-flex flex-col items-center justify-start text-center p-[1px] select-text self-start"
               >
-                <span className="text-[14px] leading-tight text-slate-800 dark:text-slate-100 select-text">
+                <span className="block w-full text-center text-[14px] leading-[1.2] text-slate-800 dark:text-slate-100 select-text">
                   {seg.text}
                 </span>
                 <span
-                  className={`${subSizeClass} font-sans leading-tight select-none mt-[2px] invisible pointer-events-none`}
+                  className={`${subSizeClass} font-sans leading-[1.15] select-none mt-[2px] invisible pointer-events-none`}
                   aria-hidden="true"
                 >
                   &nbsp;
@@ -358,14 +358,14 @@ export const InlineNoteTooltip: React.FC<InlineNoteTooltipProps> = ({
             <span
               key={idx}
               onClick={(e) => handleCharacterTap(e, t.char, t.pinyin, t.tone)}
-              className="inline-flex flex-col items-center justify-start mx-[1px] p-[1px] rounded cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              className="inline-flex flex-col items-center justify-start text-center mx-[1.5px] px-[1px] py-[1px] rounded cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               title={`${t.char} [${t.pinyin}]`}
             >
-              <span className="text-[14px] leading-tight text-slate-800 dark:text-slate-100 select-text">
+              <span className="block w-full text-center text-[14px] leading-[1.2] text-slate-800 dark:text-slate-100 select-text">
                 {t.char}
               </span>
               <span
-                className={`${subSizeClass} font-sans font-medium tracking-tight leading-tight select-none mt-[2px] ${toneClass}`}
+                className={`block w-full text-center ${subSizeClass} font-sans font-medium tracking-tight leading-[1.15] whitespace-nowrap select-none mt-[2px] ${toneClass}`}
               >
                 {t.pinyin}
               </span>
@@ -379,6 +379,7 @@ export const InlineNoteTooltip: React.FC<InlineNoteTooltipProps> = ({
   return (
     <span
       ref={containerRef}
+      data-inline-note="true"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={(e) => e.stopPropagation()}

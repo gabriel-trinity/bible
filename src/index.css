@@ -2,14 +2,19 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+@theme {
+  --font-sans: 'Plus Jakarta Sans', 'Noto Sans SC', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-serif: 'Source Serif 4', 'Noto Serif SC', Georgia, Cambria, serif;
+}
+
 @layer base {
   :root {
-    --bg-page: #f8fafc;
-    --text-primary: #0f172a;
-    --text-secondary: #475569;
-    --border-color: rgba(15, 23, 42, 0.12);
+    --bg-page: #ffffff;
+    --text-primary: #111827;
+    --text-secondary: #4b5563;
+    --border-color: rgba(15, 23, 42, 0.10);
     --card-bg: #ffffff;
-    --accent-color: #0f172a;
+    --accent-color: #111827;
   }
 
   html.dark,
@@ -27,12 +32,8 @@
   body {
     background-color: var(--bg-page);
     color: var(--text-primary);
-    font-family: 'Roboto', 'Noto Sans SC', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: var(--font-sans);
     transition: background-color 0.2s ease, color 0.2s ease;
-  }
-
-  * {
-    font-family: inherit;
   }
 }
 
@@ -56,21 +57,24 @@
   --accent-color: #f8fafc;
 }
 
-/* Pinyin Typography with Roboto Sans */
+/* Pinyin Typography */
 ruby {
   display: inline-flex;
   flex-direction: column-reverse;
   vertical-align: bottom;
   text-align: center;
   align-items: center;
+  justify-content: center;
   ruby-position: over;
   ruby-align: center;
-  margin: 0 1px;
+  margin: 0 2px;
 }
 
 ruby rt {
   display: block;
-  font-family: 'Roboto', sans-serif;
+  width: 100%;
+  text-align: center;
+  font-family: var(--font-sans);
   line-height: 1.15;
   font-weight: 500;
   user-select: none;
