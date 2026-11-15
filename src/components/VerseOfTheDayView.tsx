@@ -355,20 +355,32 @@ export const VerseOfTheDayView: React.FC<VerseOfTheDayViewProps> = ({
   }, [today, primaryTrans]);
 
   useEffect(() => {
+    const unsub = speechService.onChannelStopped('votd', () => {
+      setSpeakingId(null);
+    });
     return () => {
-      speechService.stop();
+      unsub();
+      speechService.stop('votd');
     };
   }, []);
 
   const handlePlayAudio = (rowId: string, lang: 'zh' | 'en', text: string) => {
     if (speakingId === rowId) {
-      speechService.stop();
+      speechService.stop('votd');
       setSpeakingId(null);
       return;
     }
     if (!text) return;
     setSpeakingId(rowId);
-    speechService.speak(text, lang, 0.9, () => setSpeakingId(null));
+    speechService.speak(
+      text,
+      lang,
+      0.9,
+      () => {
+        setSpeakingId((prev) => (prev === rowId ? null : prev));
+      },
+      'votd'
+    );
   };
 
   const handleShareToday = async () => {

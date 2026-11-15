@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { BibleHeader } from './components/BibleHeader';
 import { SplitReaderView } from './components/SplitReaderView';
 import { InterlinearReaderView } from './components/InterlinearReaderView';
@@ -198,6 +198,35 @@ export default function App() {
   const [autoAdvanceAudio] = useState<boolean>(true);
   const [focusAudioVerse, setFocusAudioVerse] = useState<boolean>(true);
   const [audioLanguage, setAudioLanguage] = useState<'zh' | 'en' | 'bilingual'>('en');
+
+  // Always-fresh refs so auto-advance & playback callbacks never read stale state
+  const audioLanguageRef = useRef<'zh' | 'en' | 'bilingual'>(audioLanguage);
+  const speechRateRef = useRef<number>(speechRate);
+  const primaryTransRef = useRef<TranslationId>(primaryTrans);
+  const autoAdvanceRef = useRef<boolean>(autoAdvanceAudio);
+
+  useEffect(() => {
+    audioLanguageRef.current = audioLanguage;
+  }, [audioLanguage]);
+
+  useEffect(() => {
+    speechRateRef.current = speechRate;
+  }, [speechRate]);
+
+  useEffect(() => {
+    primaryTransRef.current = primaryTrans;
+  }, [primaryTrans]);
+
+  useEffect(() => {
+    autoAdvanceRef.current = autoAdvanceAudio;
+  }, [autoAdvanceAudio]);
+
+  // Keep UI Play/Pause in sync if another speech trigger (e.g., Verse 朗读 / Char tap) interrupts chapter playback
+  useEffect(() => {
+    return speechService.onChannelStopped('chapter', () => {
+      setIsPlayingAudio(false);
+    });
+  }, []);
 
   // Subtle chapter reading progress at top of viewport
   const [readProgress, setReadProgress] = useState<number>(0);
@@ -601,11 +630,13 @@ export default function App() {
     if (meta.lang === 'zh') {
       if (primaryTrans === 'CNVS') {
         setPrimaryTrans(transId);
+        primaryTransRef.current = transId;
       } else {
         setParallelTrans(transId);
       }
     } else {
       setPrimaryTrans(transId);
+      primaryTransRef.current = transId;
     }
   }, [primaryTrans]);
 
@@ -819,7 +850,8 @@ export default function App() {
     (
       index: number,
       langOverride?: 'zh' | 'en' | 'bilingual',
-      rateOverride?: number
+      rateOverride?: number,
+      initialOffsetSec: number = 0
     ) => {
       if (!chapterData || !chapterData.verses[index]) {
         setIsPlayingAudio(false);
@@ -827,63 +859,81 @@ export default function App() {
       }
 
       setAudioVerseIndex(index);
-      setVerseElapsedSec(0);
+      setVerseElapsedSec(Math.max(0, initialOffsetSec));
       const targetVerse = chapterData.verses[index];
-      const lang = langOverride || audioLanguage;
-      const rate = rateOverride ?? speechRate;
-      const enTrans = primaryTrans === 'CNVS' ? 'NIV' : primaryTrans;
+      const lang = langOverride ?? audioLanguageRef.current;
+      const rate = rateOverride ?? speechRateRef.current;
+      const curPrimary = primaryTransRef.current;
+      const enTrans = curPrimary === 'CNVS' ? 'NIV' : curPrimary;
 
       const onVerseFinished = () => {
-        if (autoAdvanceAudio && index + 1 < chapterData.verses.length) {
-          playVerseAtIndex(index + 1, lang, rate);
+        if (autoAdvanceRef.current && index + 1 < chapterData.verses.length) {
+          playVerseAtIndex(
+            index + 1,
+            audioLanguageRef.current,
+            speechRateRef.current,
+            0
+          );
         } else {
           setIsPlayingAudio(false);
         }
       };
 
       if (lang === 'zh') {
-        speechService.speak(targetVerse.textZh, 'zh', rate, onVerseFinished);
+        speechService.speak(targetVerse.textZh, 'zh', rate, onVerseFinished, 'chapter');
       } else if (lang === 'en') {
         const textEn = targetVerse.textEn || getVerseTextForTranslation(targetVerse, enTrans);
-        speechService.speak(textEn, 'en', rate, onVerseFinished);
+        speechService.speak(textEn, 'en', rate, onVerseFinished, 'chapter');
       } else {
         const textEn = targetVerse.textEn || getVerseTextForTranslation(targetVerse, enTrans);
-        speechService.speakBilingual(targetVerse.textZh, textEn, rate, onVerseFinished);
+        speechService.speakBilingual(targetVerse.textZh, textEn, rate, onVerseFinished, 'chapter');
       }
     },
-    [chapterData, audioLanguage, speechRate, autoAdvanceAudio, primaryTrans]
+    [chapterData]
   );
 
   const handleToggleAudio = () => {
     if (!isAudioPlayerOpen) {
+      let startIdx = audioVerseIndex;
+      if (activeVerse && chapterData) {
+        const foundIdx = chapterData.verses.findIndex((v) => v.number === activeVerse.number);
+        if (foundIdx >= 0) {
+          startIdx = foundIdx;
+        }
+        setActiveVerse(null);
+        setVerseSelection(null);
+      }
       setIsAudioPlayerOpen(true);
       setIsPlayingAudio(true);
-      playVerseAtIndex(audioVerseIndex);
+      playVerseAtIndex(startIdx, audioLanguageRef.current, speechRateRef.current, 0);
       return;
     }
 
     if (isPlayingAudio) {
-      speechService.stop();
+      speechService.stop('chapter');
       setIsPlayingAudio(false);
     } else {
       setIsPlayingAudio(true);
-      playVerseAtIndex(audioVerseIndex);
+      playVerseAtIndex(audioVerseIndex, audioLanguageRef.current, speechRateRef.current, 0);
     }
   };
 
   const handleChangeAudioLanguage = (lang: 'zh' | 'en' | 'bilingual') => {
+    if (lang === audioLanguageRef.current) return;
+    audioLanguageRef.current = lang;
     setAudioLanguage(lang);
+    setVerseElapsedSec(0);
     if (isPlayingAudio) {
-      speechService.stop();
-      playVerseAtIndex(audioVerseIndex, lang);
+      playVerseAtIndex(audioVerseIndex, lang, speechRateRef.current, 0);
     }
   };
 
   const handleChangeSpeechRate = (rate: number) => {
+    if (Math.abs(rate - speechRateRef.current) < 0.01) return;
+    speechRateRef.current = rate;
     setSpeechRate(rate);
     if (isPlayingAudio) {
-      speechService.stop();
-      playVerseAtIndex(audioVerseIndex, audioLanguage, rate);
+      playVerseAtIndex(audioVerseIndex, audioLanguageRef.current, rate, 0);
     }
   };
 
@@ -903,8 +953,12 @@ export default function App() {
     setVerseElapsedSec(offsetInVerse);
 
     if (isPlayingAudio) {
-      speechService.stop();
-      playVerseAtIndex(targetIdx);
+      playVerseAtIndex(
+        targetIdx,
+        audioLanguageRef.current,
+        speechRateRef.current,
+        offsetInVerse
+      );
     }
   };
 
@@ -915,7 +969,7 @@ export default function App() {
   };
 
   const handleCloseAudioBar = () => {
-    speechService.stop();
+    speechService.stop('chapter');
     setIsPlayingAudio(false);
     setIsAudioPlayerOpen(false);
   };

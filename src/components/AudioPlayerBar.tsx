@@ -1,5 +1,5 @@
-import React from 'react';
-import { Play, Pause, X } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Play, Pause, X, Check } from 'lucide-react';
 import { AppTheme, TranslationId } from '../types/bible';
 
 interface AudioPlayerBarProps {
@@ -25,7 +25,7 @@ interface AudioPlayerBarProps {
   onClose: () => void;
 }
 
-const SPEED_OPTIONS = [0.75, 1, 1.25, 1.5];
+const SPEED_OPTIONS = [0.75, 1, 1.5, 2];
 
 function formatTime(totalSeconds: number): string {
   const clamped = Math.max(0, Math.floor(totalSeconds));
@@ -144,15 +144,30 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
   onToggleFocusVerse,
   onClose,
 }) => {
+  const [isSpeedMenuOpen, setIsSpeedMenuOpen] = useState(false);
+  const speedMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isSpeedMenuOpen) return;
+    const handleOutside = (e: PointerEvent) => {
+      if (speedMenuRef.current && !speedMenuRef.current.contains(e.target as Node)) {
+        setIsSpeedMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsSpeedMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', handleOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handleOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isSpeedMenuOpen]);
+
   const safeTotal = Math.max(1, totalDurationSec);
   const clampedCurrent = Math.min(Math.max(0, currentTimeSec), safeTotal);
   const progressPct = Math.min(100, Math.max(0, (clampedCurrent / safeTotal) * 100));
-
-  const handleCycleSpeed = () => {
-    const idx = SPEED_OPTIONS.findIndex((s) => Math.abs(s - speechRate) < 0.05);
-    const next = SPEED_OPTIONS[(idx + 1) % SPEED_OPTIONS.length];
-    onChangeRate(next);
-  };
 
   const handleCycleLanguage = () => {
     const next: 'en' | 'zh' | 'bilingual' =
@@ -279,17 +294,63 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
               </button>
             </div>
 
-            {/* Right Controls: 1x  VoiceLang  Follow-Sync  ✕ */}
+            {/* Right Controls: 1x (with speed popover)  VoiceLang  Follow-Sync  ✕ */}
             <div className="flex items-center gap-2 sm:gap-3 sm:order-3 shrink-0">
-              <button
-                type="button"
-                onClick={handleCycleSpeed}
-                className="px-2 py-1 rounded-lg text-xs sm:text-[13px] font-bold tabular-nums text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer whitespace-nowrap"
-                title="Cycle playback speed"
-                aria-label={`Playback speed ${formatRateLabel(speechRate)}`}
-              >
-                {formatRateLabel(speechRate)}
-              </button>
+              <div className="relative" ref={speedMenuRef}>
+                {isSpeedMenuOpen && (
+                  <div
+                    role="menu"
+                    aria-label="Playback speed"
+                    className={`absolute bottom-full mb-3 left-1/2 -translate-x-1/2 w-40 py-2 rounded-2xl border z-50 animate-in fade-in slide-in-from-bottom-2 duration-150 ${
+                      theme === 'dark'
+                        ? 'bg-slate-900 border-slate-800 text-slate-100 shadow-[0_10px_32px_rgba(0,0,0,0.65)]'
+                        : 'bg-white border-slate-200/70 text-slate-900 shadow-[0_10px_32px_rgba(15,23,42,0.14)]'
+                    }`}
+                  >
+                    {SPEED_OPTIONS.map((rate) => {
+                      const isSelected = Math.abs(rate - speechRate) < 0.05;
+                      return (
+                        <button
+                          key={rate}
+                          type="button"
+                          role="menuitemradio"
+                          aria-checked={isSelected}
+                          onClick={() => {
+                            onChangeRate(rate);
+                            setIsSpeedMenuOpen(false);
+                          }}
+                          className={`w-full px-4 py-2.5 flex items-center gap-3 text-left text-[15px] transition-colors cursor-pointer ${
+                            isSelected
+                              ? 'bg-[#EAEAEA] dark:bg-slate-800 font-bold text-slate-900 dark:text-slate-100'
+                              : 'font-normal text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                          }`}
+                        >
+                          <span className="w-4 flex items-center justify-center shrink-0">
+                            {isSelected && <Check className="w-4 h-4 stroke-[2.2]" />}
+                          </span>
+                          <span className="tabular-nums">{formatRateLabel(rate)}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setIsSpeedMenuOpen((prev) => !prev)}
+                  className={`px-2 py-1 rounded-lg text-xs sm:text-[13px] font-bold tabular-nums transition-colors cursor-pointer whitespace-nowrap ${
+                    isSpeedMenuOpen
+                      ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100'
+                      : 'text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                  title="Playback speed"
+                  aria-label={`Playback speed ${formatRateLabel(speechRate)}`}
+                  aria-haspopup="menu"
+                  aria-expanded={isSpeedMenuOpen}
+                >
+                  {formatRateLabel(speechRate)}
+                </button>
+              </div>
 
               <button
                 type="button"
