@@ -39,6 +39,7 @@ interface SingleReaderViewProps {
 }
 
 const HIGHLIGHT_STYLES: Record<HighlightColor, string> = {
+  yellow: 'bg-yellow-200/70 dark:bg-yellow-900/35',
   gold: 'bg-amber-200/50 dark:bg-amber-900/35',
   emerald: 'bg-emerald-200/50 dark:bg-emerald-900/35',
   sky: 'bg-sky-200/50 dark:bg-sky-900/35',
@@ -177,17 +178,13 @@ export const SingleReaderView: React.FC<SingleReaderViewProps> = ({
                 !isLastVerse && !nextHasPericope
                   ? 'border-b border-slate-200/80 dark:border-slate-800/80'
                   : ''
-              } ${isDimmed ? 'opacity-40' : 'opacity-100'} ${
-                isSelected && !highlight
-                  ? 'bg-slate-100/80 dark:bg-slate-800/60 rounded-xl px-3 -mx-3'
-                  : highlightClass
-              }`}
+              } ${isDimmed ? 'opacity-40' : 'opacity-100'} ${highlightClass}`}
               style={{
                 fontSize: `${fontSize}px`,
                 lineHeight: isPrimaryChinese && pinyinMode === 'below' ? 2.3 : 1.8,
               }}
             >
-              {(isSpeaking || isSelected) && (
+              {isSpeaking && (
                 <span
                   aria-hidden="true"
                   className="absolute -left-3.5 sm:-left-5 top-2.5 bottom-2.5 w-[2.5px] rounded-full bg-slate-900 dark:bg-slate-100"
@@ -207,22 +204,38 @@ export const SingleReaderView: React.FC<SingleReaderViewProps> = ({
               )}
 
               {isPrimaryChinese ? (
-                <PinyinVerseText
-                  text={text}
-                  pinyinMode={pinyinMode}
-                  pinyinSize={pinyinSize}
-                  colorTones={colorTones}
-                  theme={theme}
-                  redLetter={redLetter}
-                  showFootnotes={showFootnotes}
-                  onCharClick={onCharClick}
-                />
+                <span
+                  className={
+                    isSelected
+                      ? 'border-b-[1.5px] border-dotted border-slate-600 dark:border-slate-300 pb-0.5'
+                      : undefined
+                  }
+                >
+                  <PinyinVerseText
+                    text={text}
+                    pinyinMode={pinyinMode}
+                    pinyinSize={pinyinSize}
+                    colorTones={colorTones}
+                    theme={theme}
+                    redLetter={redLetter}
+                    showFootnotes={showFootnotes}
+                    onCharClick={onCharClick}
+                  />
+                </span>
               ) : (
-                <RedLetterText
-                  text={text}
-                  enabled={redLetter}
-                  className={proseFontClass}
-                />
+                <span
+                  className={
+                    isSelected
+                      ? 'underline decoration-dotted decoration-slate-600/85 dark:decoration-slate-300/85 underline-offset-[5px] decoration-[1.5px]'
+                      : undefined
+                  }
+                >
+                  <RedLetterText
+                    text={text}
+                    enabled={redLetter}
+                    className={proseFontClass}
+                  />
+                </span>
               )}
 
               {showFootnotes && hasNote && (

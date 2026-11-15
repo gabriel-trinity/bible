@@ -5,13 +5,23 @@ import {
   Check,
   Volume2,
   FileText,
-  Share2,
   X,
   Highlighter,
   Scissors,
   Sparkles,
+  ChevronRight,
+  ArrowLeft,
+  CornerUpRight,
 } from 'lucide-react';
-import { HighlightColor, AppTheme, VerseItem, VerseSelectionInfo } from '../types/bible';
+import {
+  HighlightColor,
+  AppTheme,
+  VerseItem,
+  VerseSelectionInfo,
+  TranslationId,
+} from '../types/bible';
+import { TRANSLATIONS } from '../data/bibleBooks';
+import { getVerseTextForTranslation } from '../data/curatedChapters';
 import { speechService } from '../services/speechService';
 import { stripVerseMarkup } from '../services/pinyinService';
 
@@ -20,6 +30,7 @@ interface VerseActionToolbarProps {
   bookNameZh: string;
   bookNameEn: string;
   chapter: number;
+  primaryTrans?: TranslationId;
   isBookmarked: boolean;
   highlightColor?: HighlightColor;
   theme: AppTheme;
@@ -33,18 +44,33 @@ interface VerseActionToolbarProps {
   onClose: () => void;
 }
 
-const HIGHLIGHT_COLORS: { id: HighlightColor; label: string; bgClass: string; borderClass: string }[] = [
-  { id: 'gold', label: 'Gold', bgClass: 'bg-amber-200', borderClass: 'border-amber-400' },
-  { id: 'emerald', label: 'Emerald', bgClass: 'bg-emerald-200', borderClass: 'border-emerald-400' },
-  { id: 'sky', label: 'Sky Blue', bgClass: 'bg-sky-200', borderClass: 'border-sky-400' },
-  { id: 'rose', label: 'Rose', bgClass: 'bg-rose-200', borderClass: 'border-rose-400' },
+const HIGHLIGHT_SWATCHES: {
+  id: HighlightColor;
+  label: string;
+  swatchClass: string;
+}[] = [
+  { id: 'yellow', label: 'Yellow', swatchClass: 'bg-[#fef035]' },
+  { id: 'emerald', label: 'Green', swatchClass: 'bg-[#66f769]' },
+  { id: 'sky', label: 'Blue', swatchClass: 'bg-[#00d4ff]' },
+  { id: 'gold', label: 'Orange', swatchClass: 'bg-[#ffc663]' },
+  { id: 'rose', label: 'Pink', swatchClass: 'bg-[#f28df2]' },
 ];
+
+const COMPARE_TRANSLATIONS: TranslationId[] = ['NIV', 'ESV', 'NKJV', 'NLT', 'NASB', 'CNVS'];
+
+const CompareCirclesIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
+  <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+    <circle cx="9.5" cy="12" r="5.5" stroke="currentColor" strokeWidth="1.8" />
+    <circle cx="14.5" cy="12" r="5.5" stroke="currentColor" strokeWidth="1.8" />
+  </svg>
+);
 
 export const VerseActionToolbar: React.FC<VerseActionToolbarProps> = ({
   verse,
   bookNameZh,
   bookNameEn,
   chapter,
+  primaryTrans = 'NIV',
   isBookmarked,
   highlightColor,
   theme,
@@ -60,7 +86,7 @@ export const VerseActionToolbar: React.FC<VerseActionToolbarProps> = ({
   const [copied, setCopied] = useState(false);
   const [sharedFeedback, setSharedFeedback] = useState<'shared' | 'copied' | null>(null);
   const [snippetSaved, setSnippetSaved] = useState(false);
-  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [isCompareOpen, setIsCompareOpen] = useState(false);
 
   const isSelectionTriggered = Boolean(
     selectionInfo &&
@@ -73,20 +99,28 @@ export const VerseActionToolbar: React.FC<VerseActionToolbarProps> = ({
   useEffect(() => {
     setDraftSnippet(selectionInfo?.selectedText || '');
     setSnippetSaved(false);
+    setIsCompareOpen(false);
   }, [selectionInfo?.selectedText, selectionInfo?.trigger, verse.number]);
 
   const activeSnippet = draftSnippet.trim();
   const isSnippetMode = isSelectionTriggered && activeSnippet.length > 0;
 
+  const editionLabel = TRANSLATIONS[primaryTrans]?.shortName || primaryTrans;
   const referenceEn = `${bookNameEn} ${chapter}:${verse.number}`;
   const referenceZh = `${bookNameZh} ${chapter}:${verse.number}`;
+  const referenceHeader = `${referenceEn} ${editionLabel}`;
   const referenceStr = `${referenceEn} (${referenceZh})`;
 
   const buildSharePayload = () => {
     if (isSnippetMode) {
       return `“${activeSnippet}”\n— ${referenceEn} · ${referenceZh}`;
     }
-    const cleanEn = stripVerseMarkup(verse.textEn || '', { stripNotes: true });
+    const cleanEn = stripVerseMarkup(
+      getVerseTextForTranslation(verse, primaryTrans === 'CNVS' ? 'NIV' : primaryTrans) ||
+        verse.textEn ||
+        '',
+      { stripNotes: true }
+    );
     const cleanZh = stripVerseMarkup(verse.textZh, { stripNotes: false });
     return `[${referenceStr}]\n${cleanEn}\n${cleanZh}`;
   };
@@ -135,279 +169,267 @@ export const VerseActionToolbar: React.FC<VerseActionToolbarProps> = ({
   };
 
   return (
-    <div
-      className={`fixed bottom-[8.25rem] sm:bottom-[4.5rem] left-1/2 -translate-x-1/2 z-40 max-w-xl w-[94%] sm:w-auto sm:min-w-[420px] p-3 rounded-2xl shadow-xl border backdrop-blur-md transition-all animate-in slide-in-from-bottom-3 duration-200 font-sans ${
-        theme === 'dark'
-          ? 'bg-slate-900/95 border-slate-700 text-slate-100 shadow-slate-950/60'
-          : 'bg-white/95 border-slate-200 text-slate-900 shadow-slate-300/50'
-      }`}
-    >
-      {/* Header Row */}
-      <div className="flex items-center justify-between gap-2 px-1 pb-1.5">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">
-            {referenceStr}
-          </span>
-          {isSnippetMode && (
-            <span className="text-[11px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400 whitespace-nowrap shrink-0">
-              · {selectionInfo?.trigger === 'longpress' ? 'Long-press snippet' : 'Selected snippet'}
-            </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-1 shrink-0">
-          {isSnippetMode && onClearSelection && (
+    <div className="fixed bottom-0 inset-x-0 z-50 flex justify-center pointer-events-none font-sans">
+      <div
+        role="dialog"
+        aria-label={`Actions for ${referenceEn}`}
+        className={`pointer-events-auto w-full max-w-2xl rounded-t-3xl border-t border-x transition-all animate-in slide-in-from-bottom-4 duration-200 ${
+          theme === 'dark'
+            ? 'bg-slate-900 border-slate-800 text-slate-100 shadow-[0_-12px_40px_rgba(0,0,0,0.65)]'
+            : 'bg-white border-slate-200/80 text-slate-900 shadow-[0_-12px_40px_rgba(15,23,42,0.14)]'
+        }`}
+      >
+        {/* Top Sheet Header matching screenshot */}
+        <div className="px-5 sm:px-6 pt-4 pb-3 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400">
+              {isSnippetMode ? 'Selected Snippet:' : 'Currently Selected:'}
+            </div>
             <button
               type="button"
-              onClick={onClearSelection}
-              className="px-2 py-1 text-[11px] font-medium rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-              title="Switch back to full verse"
+              onClick={() => setIsCompareOpen((prev) => !prev)}
+              className="mt-0.5 inline-flex items-center gap-0.5 text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100 hover:opacity-75 transition-opacity cursor-pointer"
+              title="Compare translations for this verse"
             >
-              Full Verse
+              <span>{referenceHeader}</span>
+              <ChevronRight className="w-4 h-4 stroke-[2.25]" />
             </button>
-          )}
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-lg opacity-60 hover:opacity-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-            title="Close toolbar"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
+          </div>
 
-      {/* Selected Snippet Preview / Refinement Box */}
-      {isSnippetMode && (
-        <div className="mb-2 px-2.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/90 dark:bg-slate-800/70">
-          <div className="flex items-start gap-2">
-            <Scissors className="w-3.5 h-3.5 mt-1 text-slate-500 dark:text-slate-400 shrink-0" />
-            <input
-              type="text"
-              value={draftSnippet}
-              onChange={(e) => setDraftSnippet(e.target.value)}
-              aria-label="Selected verse snippet"
-              className="w-full bg-transparent text-xs sm:text-[13px] leading-snug text-slate-900 dark:text-slate-100 focus:outline-hidden font-medium"
-            />
+          <div className="flex items-center gap-2 shrink-0">
+            {isSnippetMode && onClearSelection && (
+              <button
+                type="button"
+                onClick={onClearSelection}
+                className="px-2.5 py-1.5 text-xs font-medium rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors whitespace-nowrap cursor-pointer"
+              >
+                Full Verse
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center justify-center transition-colors cursor-pointer"
+              title="Close"
+              aria-label="Close verse actions"
+            >
+              <X className="w-5 h-5 stroke-[1.9]" />
+            </button>
           </div>
         </div>
-      )}
 
-      {/* Action Buttons Row */}
-      <div className="flex items-center gap-1.5 pt-2 border-t border-slate-200 dark:border-slate-800 flex-wrap">
-        {isSnippetMode ? (
-          <>
-            {/* Save Snippet Button */}
-            <button
-              type="button"
-              onClick={handleSaveSnippet}
-              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                snippetSaved
-                  ? 'bg-emerald-600 text-white'
-                  : 'bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:hover:bg-white dark:text-slate-900'
-              }`}
-              title="Save highlighted quote to Snippets"
-            >
-              {snippetSaved ? <Check className="w-3.5 h-3.5" /> : <Scissors className="w-3.5 h-3.5" />}
-              <span>{snippetSaved ? 'Snippet Saved' : 'Save Snippet'}</span>
-            </button>
-
-            {/* Snippet Card Button */}
-            <button
-              type="button"
-              onClick={() => onOpenCardModal(activeSnippet)}
-              className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-              title="Create a shareable snippet card"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Snippet Card</span>
-            </button>
-
-            {/* Share Verse / Snippet Text */}
-            <button
-              type="button"
-              onClick={handleShareVerseText}
-              className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-              title="Share selected text"
-            >
-              {sharedFeedback ? (
-                <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              ) : (
-                <Share2 className="w-3.5 h-3.5" />
-              )}
-              <span>
-                {sharedFeedback === 'shared'
-                  ? 'Shared'
-                  : sharedFeedback === 'copied'
-                  ? 'Ready to Share'
-                  : 'Share'}
+        {/* Compare Translations View */}
+        {isCompareOpen ? (
+          <div className="px-5 sm:px-6 pb-5 max-h-[55vh] overflow-y-auto space-y-3 border-t border-slate-100 dark:border-slate-800 pt-3">
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setIsCompareOpen(false)}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 cursor-pointer"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Back to Actions</span>
+              </button>
+              <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
+                {referenceZh}
               </span>
-            </button>
+            </div>
 
-            {/* Copy Snippet */}
-            <button
-              type="button"
-              onClick={handleCopy}
-              className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-              title="Copy selected snippet with reference"
-            >
-              {copied ? (
-                <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              ) : (
-                <Copy className="w-3.5 h-3.5" />
-              )}
-              <span>{copied ? 'Copied' : 'Copy'}</span>
-            </button>
-          </>
+            <div className="divide-y divide-slate-100 dark:divide-slate-800">
+              {COMPARE_TRANSLATIONS.map((tId) => {
+                const text = stripVerseMarkup(getVerseTextForTranslation(verse, tId), {
+                  stripNotes: true,
+                });
+                if (!text) return null;
+                return (
+                  <div key={tId} className="py-2.5 space-y-1">
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      {TRANSLATIONS[tId]?.shortName || tId}
+                    </div>
+                    <p
+                      className={`text-sm leading-relaxed text-slate-900 dark:text-slate-100 ${
+                        tId === 'CNVS' ? 'font-sans' : 'font-serif'
+                      }`}
+                    >
+                      {text}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         ) : (
           <>
-            {/* Copy Button */}
-            <button
-              type="button"
-              onClick={handleCopy}
-              className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-              title="Copy bilingual verse to clipboard"
-            >
-              {copied ? (
-                <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              ) : (
-                <Copy className="w-3.5 h-3.5" />
-              )}
-              <span>{copied ? 'Copied' : 'Copy'}</span>
-            </button>
+            {/* Snippet Editor + Quick Snippet Actions when drag/long-press selected */}
+            {isSnippetMode && (
+              <div className="mx-5 sm:mx-6 mb-2 p-3 rounded-2xl border border-slate-200 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-800/60 space-y-2.5">
+                <div className="flex items-start gap-2">
+                  <Scissors className="w-4 h-4 mt-0.5 text-slate-500 dark:text-slate-400 shrink-0" />
+                  <input
+                    type="text"
+                    value={draftSnippet}
+                    onChange={(e) => setDraftSnippet(e.target.value)}
+                    aria-label="Selected verse snippet"
+                    className="w-full bg-transparent text-xs sm:text-sm leading-snug text-slate-900 dark:text-slate-100 focus:outline-hidden font-medium"
+                  />
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={handleSaveSnippet}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
+                      snippetSaved
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:hover:bg-white dark:text-slate-900'
+                    }`}
+                  >
+                    {snippetSaved ? <Check className="w-3.5 h-3.5" /> : <Scissors className="w-3.5 h-3.5" />}
+                    <span>{snippetSaved ? 'Snippet Saved' : 'Save Snippet'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onOpenCardModal(activeSnippet)}
+                    className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Snippet Card</span>
+                  </button>
+                </div>
+              </div>
+            )}
 
-            {/* Share Verse Text Button */}
-            <button
-              type="button"
-              onClick={handleShareVerseText}
-              className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-              title="Share verse text"
-            >
-              {sharedFeedback ? (
-                <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              ) : (
-                <Share2 className="w-3.5 h-3.5" />
-              )}
-              <span>{sharedFeedback ? 'Shared' : 'Share'}</span>
-            </button>
+            {/* Primary Divider-Separated Action Rows matching screenshot */}
+            <div className="px-5 sm:px-6 divide-y divide-slate-100 dark:divide-slate-800/90">
+              {/* Row 1: Highlight + 5 Vibrant Color Swatches */}
+              <div className="py-3 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5 shrink-0">
+                  <Highlighter className="w-5 h-5 text-slate-800 dark:text-slate-200 stroke-[1.8]" />
+                  <span className="text-sm sm:text-[15px] font-semibold text-slate-900 dark:text-slate-100">
+                    Highlight
+                  </span>
+                </div>
 
-            {/* Card Generator Button */}
-            <button
-              type="button"
-              onClick={() => onOpenCardModal()}
-              className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:hover:bg-white dark:text-slate-900 transition-colors shadow-2xs whitespace-nowrap shrink-0 cursor-pointer"
-              title="Create verse card"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Card</span>
-            </button>
+                <div className="flex items-center gap-2.5 sm:gap-3 overflow-x-auto py-0.5 pr-0.5">
+                  {HIGHLIGHT_SWATCHES.map((c) => {
+                    const isActive = highlightColor === c.id;
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => onSetHighlight(isActive ? null : c.id)}
+                        className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full shrink-0 transition-transform cursor-pointer flex items-center justify-center ${
+                          c.swatchClass
+                        } ${
+                          isActive
+                            ? 'ring-2 ring-slate-900 dark:ring-slate-100 ring-offset-2 dark:ring-offset-slate-900 scale-95'
+                            : 'hover:scale-105'
+                        }`}
+                        title={isActive ? `Remove ${c.label} highlight` : `Highlight ${c.label}`}
+                        aria-label={isActive ? `Remove ${c.label} highlight` : `Highlight ${c.label}`}
+                      >
+                        {isActive && <Check className="w-4 h-4 text-slate-900 stroke-[2.5]" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Row 2: Copy */}
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="w-full py-3.5 flex items-center gap-3.5 text-left hover:bg-slate-50/80 dark:hover:bg-slate-800/50 -mx-2 px-2 rounded-xl transition-colors cursor-pointer"
+              >
+                {copied ? (
+                  <Check className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                ) : (
+                  <Copy className="w-5 h-5 text-slate-800 dark:text-slate-200 stroke-[1.8] shrink-0" />
+                )}
+                <span className="text-sm sm:text-[15px] font-semibold text-slate-900 dark:text-slate-100">
+                  {copied ? 'Copied to Clipboard' : isSnippetMode ? 'Copy Snippet' : 'Copy'}
+                </span>
+              </button>
+
+              {/* Row 3: Compare */}
+              <button
+                type="button"
+                onClick={() => setIsCompareOpen(true)}
+                className="w-full py-3.5 flex items-center gap-3.5 text-left hover:bg-slate-50/80 dark:hover:bg-slate-800/50 -mx-2 px-2 rounded-xl transition-colors cursor-pointer"
+              >
+                <CompareCirclesIcon className="w-5 h-5 text-slate-800 dark:text-slate-200 shrink-0" />
+                <span className="text-sm sm:text-[15px] font-semibold text-slate-900 dark:text-slate-100">
+                  Compare
+                </span>
+              </button>
+
+              {/* Row 4: Share */}
+              <button
+                type="button"
+                onClick={handleShareVerseText}
+                className="w-full py-3.5 flex items-center gap-3.5 text-left hover:bg-slate-50/80 dark:hover:bg-slate-800/50 -mx-2 px-2 rounded-xl transition-colors cursor-pointer"
+              >
+                {sharedFeedback ? (
+                  <Check className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                ) : (
+                  <CornerUpRight className="w-5 h-5 text-slate-800 dark:text-slate-200 stroke-[1.9] shrink-0" />
+                )}
+                <span className="text-sm sm:text-[15px] font-semibold text-slate-900 dark:text-slate-100">
+                  {sharedFeedback === 'shared'
+                    ? 'Shared'
+                    : sharedFeedback === 'copied'
+                    ? 'Ready to Share (Copied)'
+                    : isSnippetMode
+                    ? 'Share Snippet'
+                    : 'Share'}
+                </span>
+              </button>
+            </div>
+
+            {/* Clean Compact Study Strip: Bookmark · Note · Verse Card · Listen */}
+            <div className="px-4 sm:px-6 pt-2 pb-3.5 border-t border-slate-100 dark:border-slate-800 grid grid-cols-4 gap-1.5">
+              <button
+                type="button"
+                onClick={onToggleBookmark}
+                className={`py-2 px-2 rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
+                  isBookmarked
+                    ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 font-semibold'
+                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                <Bookmark className={`w-3.5 h-3.5 ${isBookmarked ? 'fill-current' : ''}`} />
+                <span>{isBookmarked ? 'Saved' : 'Bookmark'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={onOpenNote}
+                className="py-2 px-2 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>Note</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onOpenCardModal(isSnippetMode ? activeSnippet : undefined)}
+                className="py-2 px-2 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Card</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => speechService.speak(verse.textZh, 'zh', 0.9)}
+                className="py-2 px-2 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+                title="Listen in Mandarin Chinese (中文朗读)"
+              >
+                <Volume2 className="w-3.5 h-3.5" />
+                <span>朗读</span>
+              </button>
+            </div>
           </>
         )}
-
-        {/* Bookmark Button */}
-        <button
-          type="button"
-          onClick={onToggleBookmark}
-          className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-            isBookmarked
-              ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200 font-bold shadow-2xs'
-              : 'hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-          title="Save to bookmarks"
-        >
-          <Bookmark className={`w-3.5 h-3.5 ${isBookmarked ? 'fill-current' : ''}`} />
-          <span>{isBookmarked ? 'Bookmarked' : 'Bookmark'}</span>
-        </button>
-
-        {/* Chinese Audio Button */}
-        <button
-          type="button"
-          onClick={() => speechService.speak(verse.textZh, 'zh', 0.9)}
-          className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-          title="Listen to Chinese audio (中文朗读)"
-        >
-          <Volume2 className="w-3.5 h-3.5" />
-          <span>中文朗读</span>
-        </button>
-
-        {/* English Audio Button */}
-        {verse.textEn && (
-          <button
-            type="button"
-            onClick={() => speechService.speak(verse.textEn || '', 'en', 0.95)}
-            className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-            title="Listen to English audio (NIV)"
-          >
-            <Volume2 className="w-3.5 h-3.5 opacity-70" />
-            <span>English</span>
-          </button>
-        )}
-
-        {/* Highlight Trigger & Color palette */}
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setShowColorPicker(!showColorPicker)}
-            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-              highlightColor
-                ? 'bg-slate-200 text-slate-900 dark:bg-slate-800 dark:text-slate-100'
-                : 'hover:bg-slate-100 dark:hover:bg-slate-800'
-            }`}
-            title="Highlight verse color"
-          >
-            <Highlighter className="w-3.5 h-3.5" />
-            <span>Highlight</span>
-          </button>
-
-          {showColorPicker && (
-            <div
-              className={`absolute bottom-full left-0 mb-2 p-2 rounded-xl shadow-lg border flex items-center gap-2 ${
-                theme === 'dark' ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'
-              }`}
-            >
-              {HIGHLIGHT_COLORS.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => {
-                    onSetHighlight(c.id);
-                    setShowColorPicker(false);
-                  }}
-                  className={`w-6 h-6 rounded-full border-2 cursor-pointer ${c.bgClass} ${
-                    highlightColor === c.id
-                      ? 'ring-2 ring-slate-900 dark:ring-slate-100 scale-110'
-                      : 'border-transparent'
-                  }`}
-                  title={c.label}
-                />
-              ))}
-              {highlightColor && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onSetHighlight(null);
-                    setShowColorPicker(false);
-                  }}
-                  className="text-[11px] opacity-70 hover:opacity-100 px-1 py-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-                  title="Remove highlight"
-                >
-                  Clear
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Note Button */}
-        <button
-          type="button"
-          onClick={onOpenNote}
-          className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-          title="Add or edit study note"
-        >
-          <FileText className="w-3.5 h-3.5" />
-          <span>Note</span>
-        </button>
       </div>
     </div>
   );

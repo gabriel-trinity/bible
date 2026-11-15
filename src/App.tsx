@@ -1135,7 +1135,7 @@ export default function App() {
                 currentChapter={currentChapter}
                 theme={theme}
                 isPlayingAudio={isPlayingAudio}
-                isAudioPlayerOpen={isAudioPlayerOpen}
+                isAudioPlayerOpen={isAudioPlayerOpen || Boolean(activeVerse)}
                 onToggleAudio={handleToggleAudio}
                 onPrevChapter={handlePrevChapter}
                 onNextChapter={handleNextChapter}
@@ -1146,13 +1146,14 @@ export default function App() {
         )}
       </main>
 
-      {/* Floating Verse Action Toolbar */}
+      {/* Bottom Sheet Verse Action Toolbar matching layout */}
       {activeTab === 'bible' && activeVerse && (
         <VerseActionToolbar
           verse={activeVerse}
           bookNameZh={currentBook.nameZh}
           bookNameEn={currentBook.nameEn}
           chapter={currentChapter}
+          primaryTrans={primaryTrans}
           isBookmarked={bookmarkedVerseKeys.has(activeVerseKey)}
           highlightColor={highlights[activeVerseKey]}
           theme={theme}
@@ -1341,8 +1342,8 @@ export default function App() {
         onCharClick={(char, pinyin, tone) => setInspectingChar({ char, pinyin, tone })}
       />
 
-      {/* Fixed Bottom Navigation Menu separating Bible & Verse of the Day (hidden when docked AudioPlayerBar is active) */}
-      {!(activeTab === 'bible' && isAudioPlayerOpen) && (
+      {/* Fixed Bottom Navigation Menu separating Bible & Verse of the Day (hidden when docked AudioPlayerBar or VerseActionToolbar sheet is active) */}
+      {!(activeTab === 'bible' && (isAudioPlayerOpen || Boolean(activeVerse))) && (
         <BottomTabBar
           activeTab={activeTab}
           theme={theme}

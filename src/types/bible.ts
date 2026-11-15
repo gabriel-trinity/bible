@@ -87,7 +87,7 @@ export type PinyinSize = 'sm' | 'base' | 'lg';
 
 export type AppTheme = 'light' | 'dark';
 
-export type HighlightColor = 'gold' | 'emerald' | 'sky' | 'rose';
+export type HighlightColor = 'yellow' | 'gold' | 'emerald' | 'sky' | 'rose';
 
 export interface UserHighlight {
   verseKey: string; // e.g. "GEN.1.1"

@@ -40,6 +40,7 @@ interface InterlinearReaderViewProps {
 }
 
 const HIGHLIGHT_STYLES: Record<HighlightColor, string> = {
+  yellow: 'bg-yellow-200/70 dark:bg-yellow-900/35',
   gold: 'bg-amber-200/45 dark:bg-amber-900/30',
   emerald: 'bg-emerald-200/45 dark:bg-emerald-900/30',
   sky: 'bg-sky-200/45 dark:bg-sky-900/30',
@@ -163,14 +164,10 @@ export const InterlinearReaderView: React.FC<InterlinearReaderViewProps> = ({
                 !isLastVerse && !nextHasPericope
                   ? 'border-b border-slate-200/80 dark:border-slate-800/80'
                   : ''
-              } ${isDimmed ? 'opacity-40' : 'opacity-100'} ${
-                isSelected && !highlight
-                  ? 'bg-slate-100/80 dark:bg-slate-800/60 rounded-xl px-3 -mx-3'
-                  : highlightClass
-              }`}
+              } ${isDimmed ? 'opacity-40' : 'opacity-100'} ${highlightClass}`}
             >
-              {/* Vertical left black indicator bar matching active speaker/selection layout */}
-              {(isSpeaking || isSelected) && (
+              {/* Vertical left black indicator bar during active audio playback */}
+              {isSpeaking && (
                 <span
                   aria-hidden="true"
                   className="absolute -left-3.5 sm:-left-5 top-3 bottom-3 w-[2.5px] rounded-full bg-slate-900 dark:bg-slate-100"
@@ -199,22 +196,38 @@ export const InterlinearReaderView: React.FC<InterlinearReaderViewProps> = ({
                 )}
 
                 {isTopChinese ? (
-                  <PinyinVerseText
-                    text={topText}
-                    pinyinMode={pinyinMode}
-                    pinyinSize={pinyinSize}
-                    colorTones={colorTones}
-                    theme={theme}
-                    redLetter={redLetter}
-                    showFootnotes={showFootnotes}
-                    onCharClick={onCharClick}
-                  />
+                  <span
+                    className={
+                      isSelected
+                        ? 'border-b-[1.5px] border-dotted border-slate-600 dark:border-slate-300 pb-0.5'
+                        : undefined
+                    }
+                  >
+                    <PinyinVerseText
+                      text={topText}
+                      pinyinMode={pinyinMode}
+                      pinyinSize={pinyinSize}
+                      colorTones={colorTones}
+                      theme={theme}
+                      redLetter={redLetter}
+                      showFootnotes={showFootnotes}
+                      onCharClick={onCharClick}
+                    />
+                  </span>
                 ) : (
-                  <RedLetterText
-                    text={topText}
-                    enabled={redLetter}
-                    className={`${proseFontClass} leading-relaxed`}
-                  />
+                  <span
+                    className={
+                      isSelected
+                        ? 'underline decoration-dotted decoration-slate-600/85 dark:decoration-slate-300/85 underline-offset-[5px] decoration-[1.5px]'
+                        : undefined
+                    }
+                  >
+                    <RedLetterText
+                      text={topText}
+                      enabled={redLetter}
+                      className={`${proseFontClass} leading-relaxed`}
+                    />
+                  </span>
                 )}
 
                 {showFootnotes && hasNote && (
